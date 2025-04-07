@@ -8,5 +8,5 @@ allow-newer:
 source-repository-package
   type: git
   location: https://github.com/zkFold/zkfold-base
-  tag: main
+  tag: be9afd672873b94e3679b958585de5142a10c315
   subdir: symbolic-base
