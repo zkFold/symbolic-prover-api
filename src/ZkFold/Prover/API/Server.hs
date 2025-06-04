@@ -2,25 +2,23 @@
 
 module ZkFold.Prover.API.Server (Env(..), runK, app) where
 
-import           Control.Lens                                    ((&), (.~),
-                                                                  (?~))
-import           Control.Monad.IO.Class                          (MonadIO (..))
-import           Data.Maybe                                      (fromJust)
-import           Data.Swagger
-import qualified Katip                                           as K
+import           Control.Lens                               ((&), (.~), (?~))
+import           Control.Monad.IO.Class                     (MonadIO (..))
+import           Data.Maybe                                 (fromJust)
+import           Data.Swagger                               hiding (get, put)
+import qualified Katip                                      as K
 import           Prelude
 import           Servant
-import           Servant.Swagger                                 (HasSwagger (..))
-import           Servant.Swagger.UI                              ()
+import           Servant.Swagger                            (HasSwagger (..))
+import           Servant.Swagger.UI                         ()
 
-import           ZkFold.Base.Data.ByteString                     (fromByteString,
-                                                                  toByteString)
-import           ZkFold.Base.Protocol.NonInteractiveProof
-import           ZkFold.Base.Protocol.NonInteractiveProof.Prover (ProofBytes (..),
-                                                                  ProveAPIResult (..))
-import           ZkFold.Prover.API.Types.Args                    (WitnessBytes (..))
+import           ZkFold.Data.ByteString                     (fromByteString,
+                                                             toByteString)
+import           ZkFold.Protocol.NonInteractiveProof
+import           ZkFold.Protocol.NonInteractiveProof.Prover (ProofBytes (..),
+                                                             ProveAPIResult (..))
+import           ZkFold.Prover.API.Types.Args               (WitnessBytes (..))
 import           ZkFold.Prover.API.Types.ZkProof
-
 
 type API = ProveAPI :<|> DocAPI
 
@@ -38,7 +36,7 @@ proveHandler (Env env) (WitnessBytes bsW) = do
   runK env "Start prove"
   let setup' = setupEqualityCheckContract
   let witness' = fromJust $ fromByteString bsW
-  let proveRes = prove @(PlonkExample 16) setup' witness'
+  let proveRes = prove @(PlonkupExample 16) setup' witness'
   let res = ProveAPISuccess . ProofBytes $ toByteString proveRes
   runK env $ K.logStr $ "Setup: " ++ show setup'
   runK env $ K.logStr $ "Witness: " ++ show witness'
