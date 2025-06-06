@@ -95,6 +95,7 @@ library
                      , warp
                      , katip
                      , symbolic-base
+                     , zkfold-prover
   hs-source-dirs:      src
 
 executable zkfold-prover-api
