@@ -1,9 +1,5 @@
-# zkFold Prover API
-REST API server for zkFold proof generation. Leverages the [zkFold Base](https://github.com/zkFold/zkfold-base/tree/main) building blocks.
-
-In collaboration with [Maestro](https://github.com/maestro-org)!
-
-<img src="media/cover.png" alt="Cover Image" width="400">
+# Symbolic Prover API
+REST API server for zkFold Symbolic proof generation. Leverages the [Symbolic](https://github.com/zkFold/symbolic/tree/main) framework.
 
 # Build
 ## Source
