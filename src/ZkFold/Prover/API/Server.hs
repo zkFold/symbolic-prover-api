@@ -1,56 +1,81 @@
-{-# LANGUAGE TypeOperators #-}
+module ZkFold.Prover.API.Server (
+  ServerConfig (..),
+  runServer,
+) where
 
-module ZkFold.Prover.API.Server (Env(..), runK, app) where
+import Control.Concurrent
+import Control.Concurrent.STM (newTQueue, newTQueueIO, newTVarIO)
+import Control.Concurrent.STM.TChan (newTChanIO)
+import Control.Monad (replicateM_, void)
+import Data.Map.Strict qualified as M
+import Data.Pool
+import Database.PostgreSQL.Simple
+import Network.Wai (Middleware)
+import Network.Wai.Handler.Warp (run)
+import Network.Wai.Middleware.Cors (CorsResourcePolicy (..), cors, corsRequestHeaders)
+import Network.Wai.Middleware.RequestLogger (logStdout)
+import Servant
+import ZkFold.Prover.API.Database
+import ZkFold.Prover.API.Handler
+import ZkFold.Prover.API.Types
 
-import           Control.Lens                               ((&), (.~), (?~))
-import           Control.Monad.IO.Class                     (MonadIO (..))
-import           Data.Maybe                                 (fromJust)
-import           Data.Swagger                               hiding (get, put)
-import qualified Katip                                      as K
-import           Prelude
-import           Servant
-import           Servant.Swagger                            (HasSwagger (..))
-import           Servant.Swagger.UI                         ()
+data ServerConfig = ServerConfig
+  { port ∷ Int
+  , dbHost ∷ String
+  , dbName ∷ String
+  , dbUser ∷ String
+  , dbPassword ∷ String
+  , nWorkers ∷ Int
+  }
+  deriving (Eq, Show)
 
-import           ZkFold.Data.ByteString                     (fromByteString,
-                                                             toByteString)
-import           ZkFold.Protocol.NonInteractiveProof
-import           ZkFold.Protocol.NonInteractiveProof.Prover (ProofBytes (..),
-                                                             ProveAPIResult (..))
-import           ZkFold.Prover.API.Types.Args               (WitnessBytes (..))
-import           ZkFold.Prover.API.Types.ZkProof
+-- Allow all origins and common methods/headers
+simpleCorsResourcePolicy ∷ CorsResourcePolicy
+simpleCorsResourcePolicy =
+  CorsResourcePolicy
+    { corsOrigins = Nothing -- Nothing means allow all origins
+    , corsMethods = ["GET", "POST", "OPTIONS"]
+    , corsRequestHeaders = ["Content-Type"]
+    , corsExposedHeaders = Nothing
+    , corsMaxAge = Just 3600
+    , corsVaryOrigin = False
+    , corsRequireOrigin = False
+    , corsIgnoreFailures = False
+    }
 
-type API = ProveAPI :<|> DocAPI
+corsMiddleware ∷ Middleware
+corsMiddleware = cors (const $ Just simpleCorsResourcePolicy)
 
-newtype Env = Env { logger :: K.LogEnv }
+runServer ∷ ServerConfig → IO ()
+runServer ServerConfig {..} = do
+  proofsDb ← newTVarIO M.empty
+  key ← randomKeyPair
+  keysVar ← newTVarIO [key]
+  queue ← newTQueueIO
+  let connectInfo =
+        defaultConnectInfo
+          { connectHost = dbHost
+          , connectDatabase = dbName
+          , connectUser = dbUser
+          , connectPassword = dbPassword
+          }
+  conn ← connect connectInfo
+  pool ← newPool $ defaultPoolConfig (connect connectInfo) close 60 20
 
-type ProveAPI = "prove"
-  :> ReqBody '[JSON] InputBytes
-  :> Post '[JSON] ProveAPIResult
+  void $ execute_ conn createQueryStatusType
+  void $ execute_ conn createQueryTable
+  void $ execute_ conn createTriggerFunction
+  void $ execute_ conn createTrigger
 
-runK :: MonadIO m => K.LogEnv -> K.LogStr -> m ()
-runK le mes = K.runKatipContextT le () "loop" $ K.logLocM K.InfoS mes
+  taskManagerTaskId ← forkIO (taskManager pool queue)
 
-proveHandler :: Env -> WitnessBytes -> Handler ProveAPIResult
-proveHandler (Env env) (WitnessBytes bsW) = do
-  runK env "Start prove"
-  let setup' = setupEqualityCheckContract
-  let witness' = fromJust $ fromByteString bsW
-  let proveRes = prove @(PlonkupExample 16) setup' witness'
-  let res = ProveAPISuccess . ProofBytes $ toByteString proveRes
-  runK env $ K.logStr $ "Setup: " ++ show setup'
-  runK env $ K.logStr $ "Witness: " ++ show witness'
-  runK env $ K.logStr $ "ProveAPi result: " ++ show res
-  pure res
-
-type DocAPI = "swagger.json" :> Get '[JSON] Swagger
-
-docHandler :: Swagger
-docHandler = toSwagger (Proxy @ProveAPI)
-  & info.title .~ "Prover API Swagger reference"
-  & info.version .~ "1.0"
-  & info.description ?~ "..."
-  & info.license ?~ ("MIT" & url ?~ URL "http://mit.com")
-
-app :: Env -> Application
-app env = serve (Proxy :: Proxy API) (proveHandler env :<|> pure docHandler)
+  let
+    ctx =
+      Ctx
+        { ctxProofsDatabase = proofsDb
+        , ctxConnectionPool = pool
+        , ctxServerKeys = keysVar
+        , ctxProofQueue = queue
+        }
+  replicateM_ nWorkers $ forkIO (proofExecutor ctx)
+  run port $ logStdout $ corsMiddleware $ serve mainApi $ mainServer ctx

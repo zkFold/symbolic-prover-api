@@ -7,11 +7,6 @@ allow-newer:
 
 source-repository-package
   type: git
-  location: https://github.com/zkFold/zkfold-prover.git
-  tag: c6db86e0ff9baedd982cc63d0c74fa7ee613519b
-
-source-repository-package
-  type: git
-  location: https://github.com/zkFold/zkfold-base
+  location: https://github.com/zkFold/symbolic
   tag: main
   subdir: symbolic-base

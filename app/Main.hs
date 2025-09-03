@@ -1,21 +1,39 @@
 {-# LANGUAGE OverloadedStrings #-}
 
-module Main where
+import Options.Applicative
+import ZkFold.Prover.API.Server
+import ZkFold.Prover.API.Database (taskManager)
+import Control.Concurrent
 
-import           Data.Maybe               (fromMaybe)
-import           Prelude
-import           Katip                    (Environment(..), Namespace(..), initLogEnv)
-import           Network.Wai.Handler.Warp (run)
-import           System.Environment       (lookupEnv)
-import           Text.Read                (readMaybe)
+portParser ∷ Parser Int
+portParser = 
+  option
+      auto
+      ( long "port"
+          <> help "Port to listen for proof requests"
+          <> showDefault
+          <> value 8083
+          <> metavar "INT"
+      )
 
-import           ZkFold.Prover.API.Server (app, Env(..), runK)
-
-main :: IO ()
+main ∷ IO ()
 main = do
-  portEnv <- lookupEnv "PORT"
-  let port = fromMaybe 8080 (portEnv >>= readMaybe)
-  putStrLn $ "Running server on port " ++ show port
-  env <- Katip.initLogEnv (Namespace ["MyApp"]) (Environment "production")
-  runK env "Start process"
-  run port $ app (Env env)
+  port ← execParser opts
+  let
+    dbHost = "localhost" 
+    dbName = "postgres"
+    dbUser = "postgres"
+    dbPassword = ""
+    nWorkers = 3
+
+  let serverConfig = ServerConfig {..}
+  print @String ("Started with config: " <> show serverConfig)
+  runServer serverConfig
+ where
+  opts =
+    info
+      (portParser <**> helper)
+      ( fullDesc
+          -- <> progDesc "Smart Wallet prover"
+          -- <> header "zkFold's Smart Wallet prover server"
+      )

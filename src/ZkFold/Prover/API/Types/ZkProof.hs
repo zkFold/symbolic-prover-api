@@ -11,30 +11,34 @@ import           Data.Swagger                               hiding (get, put)
 import           GHC.Generics                               (Par1, U1 (..),
                                                              (:*:) (..))
 import           GHC.TypeNats
-import           Poly                                       (RustPolyVec)
+-- import           Poly                                       (RustPolyVec)
 import           Prelude                                    hiding (Bool, (==))
-import           Types                                      (Rust_BLS12_381_G1_Point,
-                                                             Rust_BLS12_381_G2_Point)
+-- import           Types                                      (Rust_BLS12_381_G1_Point,
+                                                            --  Rust_BLS12_381_G2_Point)
 import           ZkFold.Algebra.Class                       (FromConstant (..))
 import           ZkFold.Algebra.EllipticCurve.Class
 import           ZkFold.Protocol.NonInteractiveProof
 import           ZkFold.Protocol.NonInteractiveProof.Prover (ProofBytes (..),
                                                              ProveAPIResult (..))
 
-import           RustBLS                                    ()
+-- import           RustBLS                                    ()
 import           ZkFold.Protocol.Plonkup
 import           ZkFold.Protocol.Plonkup.Input
 import           ZkFold.Protocol.Plonkup.Proof
 import           ZkFold.Protocol.Plonkup.Prover
 import           ZkFold.Protocol.Plonkup.Utils
 import           ZkFold.Protocol.Plonkup.Witness
-import           ZkFold.Prover.API.Types.Args               (WitnessBytes (..))
+-- import           ZkFold.Prover.API.Types.Args               (WitnessBytes (..))
 import           ZkFold.Symbolic.Class
 import           ZkFold.Symbolic.Compiler
-import           ZkFold.Symbolic.Compiler.ArithmeticCircuit
+-- import           ZkFold.Symbolic.Compiler.ArithmeticCircuit
 import           ZkFold.Symbolic.Data.Bool                  (Bool)
-import           ZkFold.Symbolic.Data.Eq
+-- import           ZkFold.Symbolic.Data.Eq
 import           ZkFold.Symbolic.Data.FieldElement
+import ZkFold.Data.Eq
+import ZkFold.FFI.Rust.Types
+import ZkFold.ArithmeticCircuit
+import ZkFold.Protocol.NonInteractiveProof.Class
 
 instance
   forall f i g1 .
@@ -67,7 +71,7 @@ instance ToSchema ProofBytes where
 instance ToSchema ProveAPIResult where
   declareNamedSchema = genericDeclareNamedSchemaUnrestricted defaultSchemaOptions
 
-type InputBytes = WitnessBytes
+-- type InputBytes = WitnessBytes
 
 type PlonkupExample n = Plonkup Par1 Par1 n
   Rust_BLS12_381_G1_Point
@@ -79,7 +83,8 @@ equalityCheckContract :: forall c . (Symbolic c) => FieldElement c -> FieldEleme
 equalityCheckContract targetValue inputValue = inputValue == targetValue
 
 setupEqualityCheckContract :: SetupProve (PlonkupExample 16)
-setupEqualityCheckContract = setupProve @(PlonkupExample 16) plonk
+-- setupEqualityCheckContract = setupProve @(PlonkupExample 16) plonk
+setupEqualityCheckContract = undefined
   where
     ac = compileWith solder (\i ->
       (U1 :*: U1, i :*: U1))
