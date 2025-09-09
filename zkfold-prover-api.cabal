@@ -20,6 +20,7 @@ common options
     ghc-options:
       -fwarn-redundant-constraints
       -Wall
+      -Werror
       -Wcompat
       -Widentities
       -Wincomplete-record-updates
@@ -27,6 +28,7 @@ common options
       -Wnoncanonical-monad-instances
       -Wpartial-fields
       -Wredundant-constraints
+      -Wunused-packages
       -O2
     if flag(pedantic)
       ghc-options:
@@ -57,17 +59,15 @@ common options
       StandaloneKindSignatures
       ExplicitForAll
       TypeApplications
+      ScopedTypeVariables
 
 library
   import:              options
   
   exposed-modules:     
     ZkFold.Prover.API.Server
-    ZkFold.Prover.API.Types.Args
-    ZkFold.Prover.API.Types.ZkProof
-    -- ZkFold.Prover.API.Api
     ZkFold.Prover.API.Encryption
-    ZkFold.Prover.API.Prove
+    ZkFold.Prover.API.Executor
     ZkFold.Prover.API.Orphans
     ZkFold.Prover.API.Types
     ZkFold.Prover.API.Types.Common
@@ -79,29 +79,19 @@ library
     ZkFold.Prover.API.Utils
     ZkFold.Prover.API.Database
   build-depends:       
-    cryptonite ^>=0.30
-    , base ^>=4.18.1.0 && <5
+      base ^>=4.18.1.0 && <5
+    , cryptonite ^>=0.30
     , binary
-    , servant
     , servant-server
     , servant-swagger
     , servant-swagger-ui
-    , swagger2
     , aeson
     , bytestring
     , text
     , lens
-    , deepseq
-    , generic-deriving
-    , QuickCheck
-    , cryptohash-sha256
-    , base64-bytestring
     , warp
-    , katip       
-    , adjunctions
     , aeson
     , bytestring
-    , containers
     , cryptonite
     , deriving-aeson
     , lens
@@ -133,8 +123,7 @@ executable zkfold-prover-api
                     , optparse-applicative
                     , aeson
                     , bytestring
-                    , base64-bytestring
-                    , text
-                    , warp
-                    , katip
+                    , symbolic-base
+                    , openapi3
+
     hs-source-dirs:   app
