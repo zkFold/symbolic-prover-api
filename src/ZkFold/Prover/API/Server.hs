@@ -1,56 +1,93 @@
-{-# LANGUAGE TypeOperators #-}
+{-# LANGUAGE AllowAmbiguousTypes #-}
 
-module ZkFold.Prover.API.Server (Env(..), runK, app) where
+module ZkFold.Prover.API.Server (
+    ServerConfig (..),
+    runServer,
+) where
 
-import           Control.Lens                               ((&), (.~), (?~))
-import           Control.Monad.IO.Class                     (MonadIO (..))
-import           Data.Maybe                                 (fromJust)
-import           Data.Swagger                               hiding (get, put)
-import qualified Katip                                      as K
-import           Prelude
-import           Servant
-import           Servant.Swagger                            (HasSwagger (..))
-import           Servant.Swagger.UI                         ()
+import Control.Concurrent
+import Control.Concurrent.STM (newTQueueIO, newTVarIO)
+import Control.Monad (replicateM_)
+import Data.Aeson
+import Data.Binary
+import Data.Data
+import Data.OpenApi (ToSchema)
+import Data.Pool
+import Database.PostgreSQL.Simple
+import Network.Wai (Middleware)
+import Network.Wai.Handler.Warp (run)
+import Network.Wai.Middleware.Cors (CorsResourcePolicy (..), cors, corsRequestHeaders)
+import Network.Wai.Middleware.RequestLogger (logStdout)
+import Servant
+import ZkFold.Protocol.NonInteractiveProof
+import ZkFold.Prover.API.Executor
+import ZkFold.Prover.API.Handler
+import ZkFold.Prover.API.Types
 
-import           ZkFold.Data.ByteString                     (fromByteString,
-                                                             toByteString)
-import           ZkFold.Protocol.NonInteractiveProof
-import           ZkFold.Protocol.NonInteractiveProof.Prover (ProofBytes (..),
-                                                             ProveAPIResult (..))
-import           ZkFold.Prover.API.Types.Args               (WitnessBytes (..))
-import           ZkFold.Prover.API.Types.ZkProof
+data ServerConfig = ServerConfig
+    { serverPort :: Int
+    , dbPort :: Word16
+    , dbHost :: String
+    , dbName :: String
+    , dbUser :: String
+    , dbPassword :: String
+    , nWorkers :: Int
+    , contractId :: Int
+    }
+    deriving (Eq, Show)
 
-type API = ProveAPI :<|> DocAPI
+-- Allow all origins and common methods/headers
+simpleCorsResourcePolicy :: CorsResourcePolicy
+simpleCorsResourcePolicy =
+    CorsResourcePolicy
+        { corsOrigins = Nothing -- Nothing means allow all origins
+        , corsMethods = ["GET", "POST", "OPTIONS"]
+        , corsRequestHeaders = ["Content-Type"]
+        , corsExposedHeaders = Nothing
+        , corsMaxAge = Just 3600
+        , corsVaryOrigin = False
+        , corsRequireOrigin = False
+        , corsIgnoreFailures = False
+        }
 
-newtype Env = Env { logger :: K.LogEnv }
+corsMiddleware :: Middleware
+corsMiddleware = cors (const $ Just simpleCorsResourcePolicy)
 
-type ProveAPI = "prove"
-  :> ReqBody '[JSON] InputBytes
-  :> Post '[JSON] ProveAPIResult
+runServer ::
+    forall nip p w.
+    ( NonInteractiveProof nip
+    , w ~ Witness nip
+    , p ~ Proof nip
+    , FromJSON w
+    , ToJSON p
+    , FromJSON p
+    , ToSchema w
+    , ToSchema p
+    , Typeable nip
+    , MimeUnrender JSON w
+    ) =>
+    ServerConfig -> SetupProve nip -> IO ()
+runServer ServerConfig{..} sp = do
+    key <- randomKeyPair
+    keysVar <- newTVarIO [key]
+    queue <- newTQueueIO
+    let connectInfo =
+            defaultConnectInfo
+                { connectHost = dbHost
+                , connectDatabase = dbName
+                , connectUser = dbUser
+                , connectPassword = dbPassword
+                , connectPort = dbPort
+                }
+    pool <- newPool $ defaultPoolConfig (connect connectInfo) close 60 20
 
-runK :: MonadIO m => K.LogEnv -> K.LogStr -> m ()
-runK le mes = K.runKatipContextT le () "loop" $ K.logLocM K.InfoS mes
-
-proveHandler :: Env -> WitnessBytes -> Handler ProveAPIResult
-proveHandler (Env env) (WitnessBytes bsW) = do
-  runK env "Start prove"
-  let setup' = setupEqualityCheckContract
-  let witness' = fromJust $ fromByteString bsW
-  let proveRes = prove @(PlonkupExample 16) setup' witness'
-  let res = ProveAPISuccess . ProofBytes $ toByteString proveRes
-  runK env $ K.logStr $ "Setup: " ++ show setup'
-  runK env $ K.logStr $ "Witness: " ++ show witness'
-  runK env $ K.logStr $ "ProveAPi result: " ++ show res
-  pure res
-
-type DocAPI = "swagger.json" :> Get '[JSON] Swagger
-
-docHandler :: Swagger
-docHandler = toSwagger (Proxy @ProveAPI)
-  & info.title .~ "Prover API Swagger reference"
-  & info.version .~ "1.0"
-  & info.description ?~ "..."
-  & info.license ?~ ("MIT" & url ?~ URL "http://mit.com")
-
-app :: Env -> Application
-app env = serve (Proxy :: Proxy API) (proveHandler env :<|> pure docHandler)
+    let
+        ctx =
+            Ctx
+                { ctxConnectionPool = pool
+                , ctxServerKeys = keysVar
+                , ctxProofQueue = queue
+                , ctxContractId = contractId
+                }
+    replicateM_ nWorkers $ forkIO (proofExecutor @nip @p @w ctx sp)
+    run serverPort $ logStdout $ corsMiddleware $ serve (mainApi @nip) $ mainServer @nip ctx

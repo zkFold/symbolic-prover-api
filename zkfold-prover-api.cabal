@@ -20,6 +20,7 @@ common options
     ghc-options:
       -fwarn-redundant-constraints
       -Wall
+      -Werror
       -Wcompat
       -Widentities
       -Wincomplete-record-updates
@@ -27,75 +28,91 @@ common options
       -Wnoncanonical-monad-instances
       -Wpartial-fields
       -Wredundant-constraints
+      -Wunused-packages
       -O2
     if flag(pedantic)
       ghc-options:
         -Werror
     default-extensions:
-      BangPatterns,
-      BinaryLiterals,
-      ConstraintKinds,
-      DataKinds,
-      DefaultSignatures,
-      DeriveDataTypeable,
-      DeriveFoldable,
-      DeriveFunctor,
-      DeriveGeneric,
-      DeriveTraversable,
-      ExistentialQuantification,
-      FlexibleContexts,
-      FlexibleInstances,
-      FunctionalDependencies,
-      GADTs,
-      GeneralizedNewtypeDeriving,
-      InstanceSigs,
-      KindSignatures,
-      LambdaCase,
-      MultiParamTypeClasses,
-      MultiWayIf,
-      NamedFieldPuns,
-      NoImplicitPrelude,
-      NoStarIsType,
-      NumericUnderscores,
-      OverloadedStrings,
-      OverloadedLabels,
-      PolyKinds,
-      RankNTypes,
-      RecordWildCards,
-      ScopedTypeVariables,
-      StandaloneDeriving,
-      StandaloneKindSignatures,
-      TupleSections,
-      TypeApplications,
-      TypeFamilies,
+      DataKinds
+      DeriveAnyClass
+      DerivingStrategies
+      DeriveGeneric
+      DerivingVia
+      GADTs
+      LambdaCase
+      MultiWayIf
+      OverloadedStrings
+      RecordWildCards
+      RoleAnnotations
+      TemplateHaskell
+      TypeFamilies
+      TypeFamilyDependencies
+      UndecidableInstances
+      UnicodeSyntax
       ViewPatterns
+      ImportQualifiedPost
+      FlexibleContexts
+      GeneralizedNewtypeDeriving
+      BangPatterns
+      TypeOperators
+      StandaloneKindSignatures
+      ExplicitForAll
+      TypeApplications
+      ScopedTypeVariables
 
 library
   import:              options
   
-  exposed-modules:     ZkFold.Prover.API.Server
-                     , ZkFold.Prover.API.Types.Args
-                     , ZkFold.Prover.API.Types.ZkProof
-  build-depends:       base ^>=4.18.1.0 && <5
-                     , binary
-                     , servant
-                     , servant-server
-                     , servant-swagger
-                     , servant-swagger-ui
-                     , swagger2
-                     , aeson
-                     , bytestring
-                     , text
-                     , lens
-                     , deepseq
-                     , generic-deriving
-                     , QuickCheck
-                     , cryptohash-sha256
-                     , base64-bytestring
-                     , warp
-                     , katip
-                     , symbolic-base
-                     , zkfold-prover
+  exposed-modules:     
+    ZkFold.Prover.API.Server
+    ZkFold.Prover.API.Encryption
+    ZkFold.Prover.API.Executor
+    ZkFold.Prover.API.Orphans
+    ZkFold.Prover.API.Types
+    ZkFold.Prover.API.Types.Common
+    ZkFold.Prover.API.Types.Ctx
+    ZkFold.Prover.API.Types.Encryption
+    ZkFold.Prover.API.Types.Errors
+    ZkFold.Prover.API.Types.Prove
+    ZkFold.Prover.API.Handler
+    ZkFold.Prover.API.Utils
+    ZkFold.Prover.API.Database
+  build-depends:       
+      base ^>=4.18.1.0 && <5
+    , cryptonite ^>=0.30
+    , binary
+    , servant-server
+    , servant-swagger
+    , servant-swagger-ui
+    , aeson
+    , bytestring
+    , text
+    , lens
+    , warp
+    , aeson
+    , bytestring
+    , cryptonite
+    , deriving-aeson
+    , lens
+    , mtl
+    , stm
+    , servant-server
+    , servant-swagger-ui
+    , servant-openapi3
+    , bytestring
+    , openapi3
+    , servant-swagger
+    , postgresql-simple >= 0.7.0.1
+    , resource-pool
+    , symbolic-base
+    , text
+    , time
+    , uuid
+    , wai
+    , wai-cors
+    , wai-extra
+    , warp
   hs-source-dirs:      src
 
 executable zkfold-prover-api
@@ -103,10 +120,10 @@ executable zkfold-prover-api
     main-is:          Main.hs
     build-depends:    base ^>=4.18.1.0 && <5
                     , zkfold-prover-api
+                    , optparse-applicative
                     , aeson
                     , bytestring
-                    , base64-bytestring
-                    , text
-                    , warp
-                    , katip
+                    , symbolic-base
+                    , openapi3
+
     hs-source-dirs:   app
