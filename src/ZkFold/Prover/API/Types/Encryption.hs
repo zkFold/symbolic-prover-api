@@ -15,9 +15,10 @@ module ZkFold.Prover.API.Types.Encryption (
 ) where
 
 import Control.Monad.IO.Class (MonadIO (..))
+import Crypto.Hash.Algorithms qualified as Hash
 import Crypto.PubKey.RSA (generate)
 import Crypto.PubKey.RSA qualified as RSA
-import Crypto.PubKey.RSA.PKCS15 qualified as PKCS15
+import Crypto.PubKey.RSA.OAEP qualified as OAEP
 import Crypto.Random.Types qualified as Crypto
 import Data.Aeson
 import Data.ByteString (ByteString)
@@ -26,12 +27,11 @@ import Data.Function ((&))
 import Data.Maybe (fromMaybe)
 import Data.OpenApi.Schema
 import Data.Text (Text)
-import Data.Time.Clock (UTCTime, addUTCTime, getCurrentTime, nominalDay)
+import Data.Time.Clock (NominalDiffTime, UTCTime, addUTCTime, getCurrentTime)
 import Data.UUID (UUID)
 import Data.UUID qualified as UUID
 import Data.UUID.V4 qualified as UUID
 import Deriving.Aeson
-
 import ZkFold.Prover.API.Orphans ()
 import ZkFold.Prover.API.Types.Common
 import ZkFold.Prover.API.Types.Errors
@@ -87,13 +87,13 @@ data KeyPair
     }
     deriving stock (Eq, Generic, Show)
 
-randomKeyPair :: (MonadIO m, Crypto.MonadRandom m) => m KeyPair
-randomKeyPair = do
+randomKeyPair :: (MonadIO m, Crypto.MonadRandom m) => NominalDiffTime -> m KeyPair
+randomKeyPair expires = do
     time <- liftIO getCurrentTime
-    let expires = addUTCTime nominalDay time -- expires in a day -- just for testing purposes
+    let expiresTime = addUTCTime expires time -- expires in a day -- just for testing purposes
     (pub, priv) <- generate 2048 65537
     kid <- randomKeyID
-    pure $ KeyPair kid (PublicKey pub) (PrivateKey priv) expires
+    pure $ KeyPair kid (PublicKey pub) (PrivateKey priv) expiresTime
 
 data PublicKeyBundle
     = PublicKeyBundle
@@ -114,7 +114,8 @@ removePrivateKey KeyPair{..} = PublicKeyBundle kpId kpPublic
 decrypt :: (ProveRequestMonad m) => Maybe Text -> PrivateKey -> ByteString -> m ByteString
 decrypt maybeName (PrivateKey pkey) bs = do
     let errorMsg = "Could not decrypt the " <> fromMaybe "byte string" maybeName
-    decrypted <- PKCS15.decryptSafer pkey bs
+    let oaepParams = OAEP.defaultOAEPParams Hash.SHA256
+    decrypted <- OAEP.decryptSafer oaepParams pkey bs
     case decrypted of
         Left _ -> throw (ZKPEDecryptionError $ ZKDecryptionFailed errorMsg)
         Right res -> pure res

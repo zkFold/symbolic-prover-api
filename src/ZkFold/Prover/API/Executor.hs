@@ -12,10 +12,11 @@ import ZkFold.Protocol.NonInteractiveProof
 import ZkFold.Prover.API.Database
 import ZkFold.Prover.API.Encryption
 import ZkFold.Prover.API.Types.Ctx
+import ZkFold.Prover.API.Types.ProveAlgorithm (ProveAlgorithm (..))
 
 proofExecutor ::
     forall nip p w.
-    (NonInteractiveProof nip, w ~ Witness nip, p ~ Proof nip, FromJSON w, ToJSON p) =>
+    (ProveAlgorithm nip, w ~ Witness nip, p ~ Proof nip, FromJSON w, ToJSON p) =>
     Ctx nip -> SetupProve nip -> IO ()
 proofExecutor Ctx{..} sp = do
     _pid <- myThreadId
@@ -31,7 +32,7 @@ proofExecutor Ctx{..} sp = do
                 liftIO $ withResource ctxConnectionPool $ \conn -> do
                     markAsFailed conn taskId
             Right w -> do
-                let (_, proof) = prove @nip sp (w :: w)
+                let proof = proveAlgorithm @nip sp (w :: w)
                 let proofBytes = encode proof
                 liftIO $ withResource ctxConnectionPool $ \conn -> do
                     finishTask conn taskId (toStrict proofBytes)

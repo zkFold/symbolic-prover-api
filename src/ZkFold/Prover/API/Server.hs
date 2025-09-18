@@ -6,13 +6,21 @@ module ZkFold.Prover.API.Server (
 ) where
 
 import Control.Concurrent
-import Control.Concurrent.STM (newTQueueIO, newTVarIO)
-import Control.Monad (replicateM_)
+import Control.Concurrent.STM (newTQueueIO, newTVarIO, writeTVar)
+import Control.Concurrent.STM.TVar (readTVarIO)
+import Control.Monad (forever, replicateM_)
+import Control.Monad.STM (atomically)
 import Data.Aeson
 import Data.Binary
 import Data.Data
 import Data.OpenApi (ToSchema)
 import Data.Pool
+import Data.Time (diffUTCTime, nominalDay)
+import Data.Time.Clock (
+    NominalDiffTime,
+    getCurrentTime,
+    nominalDiffTimeToSeconds,
+ )
 import Database.PostgreSQL.Simple
 import Network.Wai (Middleware)
 import Network.Wai.Handler.Warp (run)
@@ -23,6 +31,7 @@ import ZkFold.Protocol.NonInteractiveProof
 import ZkFold.Prover.API.Executor
 import ZkFold.Prover.API.Handler
 import ZkFold.Prover.API.Types
+import ZkFold.Prover.API.Types.ProveAlgorithm (ProveAlgorithm)
 
 data ServerConfig = ServerConfig
     { serverPort :: Int
@@ -53,9 +62,18 @@ simpleCorsResourcePolicy =
 corsMiddleware :: Middleware
 corsMiddleware = cors (const $ Just simpleCorsResourcePolicy)
 
+keyUpdater :: Ctx nip -> NominalDiffTime -> IO ()
+keyUpdater ctx period = forever $ do
+    [old, new] <- readTVarIO $ ctxServerKeys ctx
+    time <- getCurrentTime
+    let sleepTime = fromEnum (nominalDiffTimeToSeconds (kpExpires old `diffUTCTime` time)) `div` 1000000
+    threadDelay sleepTime
+    newest <- randomKeyPair period
+    atomically $ writeTVar (ctxServerKeys ctx) [new, newest]
+
 runServer ::
     forall nip p w.
-    ( NonInteractiveProof nip
+    ( ProveAlgorithm nip
     , w ~ Witness nip
     , p ~ Proof nip
     , FromJSON w
@@ -68,8 +86,10 @@ runServer ::
     ) =>
     ServerConfig -> SetupProve nip -> IO ()
 runServer ServerConfig{..} sp = do
-    key <- randomKeyPair
-    keysVar <- newTVarIO [key]
+    let period = nominalDay
+    oldKey <- randomKeyPair (period / 2)
+    newKey <- randomKeyPair period
+    keysVar <- newTVarIO [oldKey, newKey]
     queue <- newTQueueIO
     let connectInfo =
             defaultConnectInfo
@@ -89,5 +109,8 @@ runServer ServerConfig{..} sp = do
                 , ctxProofQueue = queue
                 , ctxContractId = contractId
                 }
+
+    _keyUpdaterThreadId <- forkIO $ keyUpdater ctx period
+
     replicateM_ nWorkers $ forkIO (proofExecutor @nip @p @w ctx sp)
     run serverPort $ logStdout $ corsMiddleware $ serve (mainApi @nip) $ mainServer @nip ctx

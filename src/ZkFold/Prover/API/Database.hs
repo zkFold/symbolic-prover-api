@@ -17,7 +17,7 @@ import Data.Text (unpack)
 import Data.Text.Encoding (decodeUtf8)
 import Data.UUID
 import Database.PostgreSQL.Simple
-import Database.PostgreSQL.Simple.FromField (FromField (fromField))
+import Database.PostgreSQL.Simple.FromField (FromField (fromField), returnError)
 import Database.PostgreSQL.Simple.FromRow
 import Database.PostgreSQL.Simple.Time
 import GHC.Generics
@@ -31,12 +31,12 @@ data Status = Pending | Completed | Failed
     deriving anyclass (ToJSON, FromJSON)
 
 instance FromField Status where
-    fromField _ mdata = do
-        pure $ case unpack $ decodeUtf8 $ fromJust mdata of
-            "PENDING" -> Pending
-            "COMPLETED" -> Completed
-            "FAILED" -> Failed
-            status -> error ("Unexpected status: " <> status)
+    fromField f mdata = do
+        case unpack $ decodeUtf8 $ fromJust mdata of
+            "PENDING" -> pure Pending
+            "COMPLETED" -> pure Completed
+            "FAILED" -> pure Failed
+            status -> returnError ConversionFailed f ("Unexpected status: " <> status)
 
 data Record = Record
     { id :: Int

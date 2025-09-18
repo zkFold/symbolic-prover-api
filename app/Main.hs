@@ -1,33 +1,26 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
-{-# LANGUAGE StandaloneDeriving #-}
 {-# OPTIONS_GHC -Wno-orphans #-}
 
 module Main where
 
-import Data.Aeson
 import Data.ByteString (ByteString)
-import Data.Data
 import Data.OpenApi (NamedSchema (..), ToSchema (..))
 import GHC.Generics
-import GHC.TypeLits (KnownNat)
 import Options.Applicative
-import ZkFold.Algebra.Class
+import ZkFold.Algebra.Class hiding ((/))
 import ZkFold.Algebra.EllipticCurve.BLS12_381
 import ZkFold.Algebra.EllipticCurve.Class
-import ZkFold.Algebra.Field
 import ZkFold.Algebra.Number (Natural)
 import ZkFold.Algebra.Polynomial.Univariate
 import ZkFold.ArithmeticCircuit
 import ZkFold.Data.Eq
-import ZkFold.Data.Vector qualified
 import ZkFold.Protocol.NonInteractiveProof
 import ZkFold.Protocol.Plonkup
-import ZkFold.Protocol.Plonkup.Proof
-import ZkFold.Protocol.Plonkup.Prover (PlonkupProverSecret)
 import ZkFold.Protocol.Plonkup.Utils
 import ZkFold.Protocol.Plonkup.Witness
 import ZkFold.Prover.API.Server
+import ZkFold.Prover.API.Types.ProveAlgorithm ()
 import ZkFold.Symbolic.Class
 import ZkFold.Symbolic.Compiler
 import ZkFold.Symbolic.Data.Bool (Bool)
@@ -47,36 +40,16 @@ portParser =
         )
 
 type I = (U1 :*: U1) :*: (Par1 :*: U1)
-type G1 = BLS12_381_G1_Point
-type G2 = BLS12_381_G2_Point
+type G1 = BLS12_381_G1_JacobianPoint
+type G2 = BLS12_381_G2_JacobianPoint
 type PV = (PolyVec (ScalarFieldOf G1))
 
 type PlonkupExample n =
     Plonkup I Par1 n G1 G2 ByteString PV
 
-deriving instance Generic (PlonkupWitnessInput I G1)
-deriving instance Generic (PlonkupProof G1)
-
--- TODO: move to symbolic-base ToSchema instances
-instance (KnownNat n) => ToSchema (Zp n)
-instance (ToSchema a, ToSchema b, b ~ BooleanOf a) => ToSchema (Point a)
-instance (Typeable curve, ToSchema point) => ToSchema (Weierstrass curve point)
-
-instance ToSchema BLS12_381_G1_Point
-instance (KnownNat n, ToSchema a) => ToSchema (ZkFold.Data.Vector.Vector n a)
-
-instance ToSchema (PlonkupWitnessInput I G1) where
+instance {-# OVERLAPPING #-} ToSchema (PlonkupWitnessInput I G1) where
     declareNamedSchema _ = do
         pure $ NamedSchema (Just "PlonkupWitnessInput") mempty
-instance ToSchema (PlonkupProverSecret G1)
-instance ToSchema (PlonkupProof G1)
-
-instance FromJSON (PlonkupWitnessInput I G1)
-
-instance ToJSON (PlonkupWitnessInput I G1)
-
-instance ToJSON (PlonkupProof G1)
-instance FromJSON (PlonkupProof G1)
 
 equalityCheckContract :: forall c. (Symbolic c) => FieldElement c -> FieldElement c -> Bool c
 equalityCheckContract targetValue inputValue = inputValue == targetValue
@@ -103,7 +76,7 @@ main = do
         contractId = 1
 
     let serverConfig = ServerConfig{..}
-    print @String ("Started with config: " <> show serverConfig)
+    print @String ("Started with " <> show serverConfig)
     runServer @(PlonkupExample 16) serverConfig setupEqualityCheckContract
   where
     opts =

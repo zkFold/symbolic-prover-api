@@ -75,6 +75,7 @@ library
     ZkFold.Prover.API.Types.Encryption
     ZkFold.Prover.API.Types.Errors
     ZkFold.Prover.API.Types.Prove
+    ZkFold.Prover.API.Types.ProveAlgorithm
     ZkFold.Prover.API.Handler
     ZkFold.Prover.API.Utils
     ZkFold.Prover.API.Database
@@ -121,7 +122,6 @@ executable zkfold-prover-api
     build-depends:    base ^>=4.18.1.0 && <5
                     , zkfold-prover-api
                     , optparse-applicative
-                    , aeson
                     , bytestring
                     , symbolic-base
                     , openapi3
