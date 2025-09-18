@@ -119,7 +119,7 @@ library
 executable zkfold-prover-api
     import:           options
     main-is:          Main.hs
-    build-depends:    base ^>=4.18.1.0 && <5
+    build-depends:    base >=4.18.1.0 && <5
                     , zkfold-prover-api
                     , optparse-applicative
                     , bytestring
