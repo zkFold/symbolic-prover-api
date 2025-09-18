@@ -80,7 +80,7 @@ library
     ZkFold.Prover.API.Utils
     ZkFold.Prover.API.Database
   build-depends:       
-      base ^>=4.18.1.0 && <5
+      base >=4.18.1.0 && <5
     , cryptonite ^>=0.30
     , binary
     , servant-server
