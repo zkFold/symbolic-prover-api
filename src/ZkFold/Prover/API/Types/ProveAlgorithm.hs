@@ -1,21 +1,11 @@
 {-# LANGUAGE AllowAmbiguousTypes #-}
 {-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
 
 module ZkFold.Prover.API.Types.ProveAlgorithm where
 
-import Data.ByteString (ByteString)
-import GHC.TypeLits (KnownNat)
-import ZkFold.Algebra.EllipticCurve.BLS12_381 (BLS12_381_G1_JacobianPoint, BLS12_381_G2_JacobianPoint, Fr)
-import ZkFold.Algebra.Polynomial.Univariate (PolyVec)
-import ZkFold.FFI.Rust.Plonkup (rustPlonkupProve)
-import ZkFold.Protocol.NonInteractiveProof
-import ZkFold.Protocol.Plonkup (Plonkup)
+import Data.Aeson (FromJSON, ToJSON)
+import Data.OpenApi (ToSchema)
 
-class ProveAlgorithm nip where
-    proveAlgorithm :: SetupProve nip -> Witness nip -> Proof nip
-
-instance {-# OVERLAPPABLE #-} (NonInteractiveProof nip) => ProveAlgorithm nip where
-    proveAlgorithm = (snd .) . (prove @nip)
-
-instance {-# OVERLAPPING #-} (KnownNat n) => ProveAlgorithm (Plonkup i o n BLS12_381_G1_JacobianPoint BLS12_381_G2_JacobianPoint ByteString (PolyVec Fr)) where
-    proveAlgorithm = (fst .) . rustPlonkupProve
+class (ToSchema i, ToSchema o, ToJSON o, FromJSON o, FromJSON i) => ProveAlgorithm i o where
+    proveAlgorithm :: i -> o

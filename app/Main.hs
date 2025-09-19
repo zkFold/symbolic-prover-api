@@ -17,10 +17,12 @@ import ZkFold.ArithmeticCircuit
 import ZkFold.Data.Eq
 import ZkFold.Protocol.NonInteractiveProof
 import ZkFold.Protocol.Plonkup
+import ZkFold.Protocol.Plonkup.Proof (PlonkupProof)
+import ZkFold.Protocol.Plonkup.Prover (PlonkupProverSecret)
 import ZkFold.Protocol.Plonkup.Utils
 import ZkFold.Protocol.Plonkup.Witness
 import ZkFold.Prover.API.Server
-import ZkFold.Prover.API.Types.ProveAlgorithm ()
+import ZkFold.Prover.API.Types.ProveAlgorithm (ProveAlgorithm (proveAlgorithm))
 import ZkFold.Symbolic.Class
 import ZkFold.Symbolic.Compiler
 import ZkFold.Symbolic.Data.Bool (Bool)
@@ -63,6 +65,9 @@ setupEqualityCheckContract = setupProve plonk
     (gs, h1) = getSecretParams x
     plonk = Plonkup omega k1 k2 ac h1 gs :: PlonkupExample 16
 
+instance ProveAlgorithm (PlonkupWitnessInput I G1, PlonkupProverSecret G1) (PlonkupProof G1) where
+    proveAlgorithm = snd . prove @(PlonkupExample 16) setupEqualityCheckContract
+
 main :: IO ()
 main = do
     serverPort <- execParser opts
@@ -77,7 +82,7 @@ main = do
 
     let serverConfig = ServerConfig{..}
     print @String ("Started with " <> show serverConfig)
-    runServer @(PlonkupExample 16) serverConfig setupEqualityCheckContract
+    runServer @(Witness (PlonkupExample 16)) @(Proof (PlonkupExample 16)) serverConfig
   where
     opts =
         info

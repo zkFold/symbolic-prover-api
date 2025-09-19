@@ -21,7 +21,6 @@ import Database.PostgreSQL.Simple.FromField (FromField (fromField), returnError)
 import Database.PostgreSQL.Simple.FromRow
 import Database.PostgreSQL.Simple.Time
 import GHC.Generics
-import ZkFold.Protocol.NonInteractiveProof (NonInteractiveProof (Proof))
 import ZkFold.Prover.API.Types.Prove
 import ZkFold.Prover.API.Utils
 import Prelude hiding (id)
@@ -108,9 +107,9 @@ addNewProveQuery conn contractId = do
     pure result
 
 getProofStatus ::
-    forall nip p.
-    (p ~ Proof nip, FromJSON p) =>
-    Connection -> ProofId -> IO (Status, Maybe (ZKProveResult nip))
+    forall o.
+    (FromJSON o) =>
+    Connection -> ProofId -> IO (Status, Maybe (ZKProveResult o))
 getProofStatus conn (ProofId uuid) = do
     [(status, mProof, mTime)] <-
         query
