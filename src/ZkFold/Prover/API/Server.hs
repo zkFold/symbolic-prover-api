@@ -19,6 +19,7 @@ import Data.Time.Clock (
     nominalDiffTimeToSeconds,
  )
 import Database.PostgreSQL.Simple
+import ZkFold.Prover.API.Database (initDatabase)
 import Network.Wai (Middleware)
 import Network.Wai.Handler.Warp (run)
 import Network.Wai.Middleware.Cors (CorsResourcePolicy (..), cors, corsRequestHeaders)
@@ -88,6 +89,7 @@ runServer ServerConfig{..} = do
                 , connectPort = dbPort
                 }
     pool <- newPool $ defaultPoolConfig (connect connectInfo) close 60 20
+    withResource pool initDatabase
 
     let
         ctx =
