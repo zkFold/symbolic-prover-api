@@ -15,7 +15,6 @@ import ZkFold.Prover.API.Encryption
 import ZkFold.Prover.API.Types.Ctx
 import ZkFold.Prover.API.Types.ProveAlgorithm (ProveAlgorithm (proveAlgorithm))
 
--- import ZkFold.Prover.API.Types.ProveAlgorithm (ProveAlgorithm (..))
 
 proofExecutor :: forall i o. (ProveAlgorithm i o) => Ctx i -> IO ()
 proofExecutor Ctx{..} = do

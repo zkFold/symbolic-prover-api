@@ -92,7 +92,7 @@ createQueryTable =
 initDatabase :: Connection -> IO ()
 initDatabase conn = do
     void $ execute_ conn createQueryStatusType
-    void $ execute_ conn createQueryTable 
+    void $ execute_ conn createQueryTable
 
 addNewProveQuery :: Connection -> Int -> IO (Int, UUID)
 addNewProveQuery conn contractId = do
