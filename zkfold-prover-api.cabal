@@ -75,11 +75,12 @@ library
     ZkFold.Prover.API.Types.Encryption
     ZkFold.Prover.API.Types.Errors
     ZkFold.Prover.API.Types.Prove
+    ZkFold.Prover.API.Types.ProveAlgorithm
     ZkFold.Prover.API.Handler
     ZkFold.Prover.API.Utils
     ZkFold.Prover.API.Database
   build-depends:       
-      base ^>=4.18.1.0 && <5
+      base >=4.18.1.0 && <5
     , cryptonite ^>=0.30
     , binary
     , servant-server
@@ -105,7 +106,6 @@ library
     , servant-swagger
     , postgresql-simple >= 0.7.0.1
     , resource-pool
-    , symbolic-base
     , text
     , time
     , uuid
@@ -118,10 +118,9 @@ library
 executable zkfold-prover-api
     import:           options
     main-is:          Main.hs
-    build-depends:    base ^>=4.18.1.0 && <5
+    build-depends:    base >=4.18.1.0 && <5
                     , zkfold-prover-api
                     , optparse-applicative
-                    , aeson
                     , bytestring
                     , symbolic-base
                     , openapi3

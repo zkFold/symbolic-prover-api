@@ -13,7 +13,6 @@ import Deriving.Aeson
 import Control.Lens
 import Data.Data
 import Data.OpenApi
-import ZkFold.Protocol.NonInteractiveProof
 import ZkFold.Prover.API.Orphans ()
 import ZkFold.Prover.API.Types.Encryption (KeyID)
 import ZkFold.Prover.API.Utils
@@ -35,17 +34,17 @@ instance ToSchema ZKProveRequest where
 {- | Proof bytes with their creation time.
 It might be useful if we decide to remove old results.
 -}
-data ZKProveResult nip
+data ZKProveResult o
     = ZKProveResult
-    { presProof :: Proof nip
+    { presProof :: o
     , presTimestamp :: UTCTime
     }
     deriving stock (Generic)
 
-instance (ToJSON (Proof nip)) => ToJSON (ZKProveResult nip)
-instance (FromJSON (Proof nip)) => FromJSON (ZKProveResult nip)
+instance (ToJSON o) => ToJSON (ZKProveResult o)
+instance (FromJSON o) => FromJSON (ZKProveResult o)
 
-instance forall nip p. (Typeable nip, p ~ Proof nip, ToSchema p) => ToSchema (ZKProveResult nip) where
+instance forall o. (Typeable o, ToSchema o) => ToSchema (ZKProveResult o) where
     declareNamedSchema =
         genericDeclareNamedSchema defaultSchemaOptions
             & addSwaggerDescription "Status of a submitted proof"

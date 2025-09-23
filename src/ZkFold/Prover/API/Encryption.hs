@@ -16,7 +16,6 @@ import Data.ByteString qualified as BS
 import Data.ByteString.Char8 (pack)
 import Data.Coerce (coerce)
 import Data.Text qualified as T
-import ZkFold.Protocol.NonInteractiveProof.Class
 import ZkFold.Prover.API.Types.Common
 import ZkFold.Prover.API.Types.Encryption
 import ZkFold.Prover.API.Types.Errors
@@ -46,7 +45,7 @@ stripPKCS7 bs = do
   where
     paddingLen = fromIntegral (BS.last bs)
 
-decryptInput :: forall nip m. (FromJSON (Witness nip), ProveRequestMonad m) => TVar [KeyPair] -> ZKProveRequest -> m (Witness nip)
+decryptInput :: forall w m. (FromJSON w, ProveRequestMonad m) => TVar [KeyPair] -> ZKProveRequest -> m w
 decryptInput keysVar ZKProveRequest{..} = do
     serverKeys <- getServerKeys keysVar
     let matchingKeys = filter ((== preqKeyId) . kpId) serverKeys
