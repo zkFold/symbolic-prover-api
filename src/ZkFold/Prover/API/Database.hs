@@ -1,6 +1,5 @@
 {-# LANGUAGE AllowAmbiguousTypes #-}
 {-# LANGUAGE FlexibleInstances #-}
-{-# LANGUAGE MultilineStrings #-}
 
 module ZkFold.Prover.API.Database where
 
@@ -66,28 +65,28 @@ instance FromRow Record where
 
 createQueryStatusType :: Query
 createQueryStatusType =
-    """
-    DO $$
-    BEGIN
-      IF NOT EXISTS (SELECT 1 FROM PG_TYPE WHERE TYPNAME = 'status') THEN
-        CREATE TYPE STATUS AS ENUM ('PENDING', 'COMPLETED', 'FAILED');
-      END IF;
-    END $$;
-    """
+    " \
+    \ DO $$ \
+    \ BEGIN \
+    \   IF NOT EXISTS (SELECT 1 FROM PG_TYPE WHERE TYPNAME = 'status') THEN \
+    \     CREATE TYPE STATUS AS ENUM ('PENDING', 'COMPLETED', 'FAILED'); \
+    \   END IF; \
+    \ END $$; \
+    \ "
 
 createQueryTable :: Query
 createQueryTable =
-    """
-    CREATE TABLE IF NOT EXISTS prove_request_table (
-        id SERIAL PRIMARY KEY,
-        query_uuid uuid NOT NULL DEFAULT gen_random_uuid(),
-        status status NOT NULL,
-        contract_id INT NOT NULL,
-        create_time TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-        proof_bytes BYTEA,
-        proof_time TIMESTAMPTZ
-    );
-    """
+    " \
+    \ CREATE TABLE IF NOT EXISTS prove_request_table ( \
+    \     id SERIAL PRIMARY KEY, \
+    \     query_uuid uuid NOT NULL DEFAULT gen_random_uuid(), \
+    \     status status NOT NULL, \
+    \     contract_id INT NOT NULL, \
+    \     create_time TIMESTAMPTZ NOT NULL DEFAULT NOW(), \
+    \     proof_bytes BYTEA, \
+    \     proof_time TIMESTAMPTZ \
+    \ ); \
+    \ "
 
 initDatabase :: Connection -> IO ()
 initDatabase conn = do
@@ -99,15 +98,15 @@ addNewProveQuery conn contractId = do
     [result] <-
         query
             conn
-            """
-            INSERT INTO
-                prove_request_table (
-                    status,
-                    contract_id
-                )
-            VALUES ('PENDING', ?)
-            RETURNING id, query_uuid;
-            """
+            " \
+            \ INSERT INTO \
+            \     prove_request_table ( \
+            \         status, \
+            \         contract_id \
+            \     ) \
+            \ VALUES ('PENDING', ?) \
+            \ RETURNING id, query_uuid; \
+            \ "
             (Only contractId)
     pure result
 
@@ -119,15 +118,15 @@ getProofStatus conn (ProofId uuid) = do
     [(status, mProof, mTime)] <-
         query
             conn
-            """
-            SELECT
-                status,
-                proof_bytes,
-                proof_time
-            FROM prove_request_table
-            WHERE
-                query_uuid = ?
-            """
+            " \
+            \ SELECT \
+            \     status, \
+            \     proof_bytes, \
+            \     proof_time \
+            \ FROM prove_request_table \
+            \ WHERE \
+            \     query_uuid = ? \
+            \ "
             (Only uuid)
 
     pure
@@ -144,19 +143,19 @@ getRecord conn id = do
     [record] <-
         query
             conn
-            """
-            SELECT
-                id,
-                query_uuid,
-                status,
-                contract_id,
-                create_time,
-                proof_bytes,
-                proof_time
-            FROM prove_request_table
-            WHERE
-                id = ?
-            """
+            " \
+            \ SELECT \
+            \     id, \
+            \     query_uuid, \
+            \     status, \
+            \     contract_id, \
+            \     create_time, \
+            \     proof_bytes, \
+            \     proof_time \
+            \ FROM prove_request_table \
+            \ WHERE \
+            \     id = ? \
+            \ "
             (Only id)
     pure record
 
@@ -165,11 +164,11 @@ markAsFailed conn id = do
     void $
         execute
             conn
-            """
-            UPDATE prove_request_table
-            SET status = 'FAILED'
-            WHERE id = ?;
-            """
+            " \
+            \ UPDATE prove_request_table \
+            \ SET status = 'FAILED' \
+            \ WHERE id = ?; \
+            \ "
             (Only id)
 
 finishTask ::
@@ -181,11 +180,11 @@ finishTask conn id proofBytes = do
     void $
         execute
             conn
-            """
-            UPDATE prove_request_table
-            SET status = 'COMPLETED',
-                proof_bytes = ?,
-                proof_time = NOW()
-            WHERE id = ?;
-            """
+            " \
+            \ UPDATE prove_request_table \
+            \ SET status = 'COMPLETED', \
+            \     proof_bytes = ?, \
+            \     proof_time = NOW() \
+            \ WHERE id = ?; \
+            \ "
             (proofBytes, id)
