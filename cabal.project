@@ -8,5 +8,5 @@ allow-newer:
 source-repository-package
   type: git
   location: https://github.com/zkFold/symbolic
-  tag: 78c12f5048966f069e5e6bdfe9e22b1cb896ae2a
+  tag: dfaaf701137f616145b62ff7d8deac16d29f6b1f
   subdir: symbolic-base
