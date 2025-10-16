@@ -38,7 +38,7 @@ import ZkFold.Prover.API.Types.Errors
 import ZkFold.Prover.API.Utils
 
 newtype KeyID = KeyID UUID
-    deriving stock (Eq, Generic, Ord, Show)
+    deriving stock (Eq, Generic, Ord, Show, Read)
     deriving newtype (FromJSON, ToJSON)
 
 instance ToSchema KeyID where
@@ -53,7 +53,7 @@ randomKeyID :: (MonadIO m) => m KeyID
 randomKeyID = liftIO $ coerce <$> UUID.nextRandom
 
 newtype PublicKey = PublicKey RSA.PublicKey
-    deriving stock (Eq, Generic, Show)
+    deriving stock (Eq, Generic, Show, Read)
 
 instance FromJSON PublicKey where
     parseJSON = withObject "PublicKey" $ \v ->
@@ -101,7 +101,18 @@ data PublicKeyBundle
     , pkbPublic :: PublicKey
     }
     deriving stock (Eq, Generic, Show)
-    deriving anyclass (FromJSON, ToJSON)
+instance FromJSON PublicKeyBundle where
+    parseJSON = withObject "PublicKeyBundle" $ \v ->
+        PublicKeyBundle
+            <$> fmap read (v .: "id")
+            <*> fmap read (v .: "public")
+
+instance ToJSON PublicKeyBundle where
+    toJSON (PublicKeyBundle pkbId pkbPublic) =
+        object
+            [ "id" .= show pkbId
+            , "public" .= show pkbPublic
+            ]
 
 instance ToSchema PublicKeyBundle where
     declareNamedSchema =
