@@ -53,7 +53,7 @@ randomKeyID :: (MonadIO m) => m KeyID
 randomKeyID = liftIO $ coerce <$> UUID.nextRandom
 
 newtype PublicKey = PublicKey RSA.PublicKey
-    deriving stock (Eq, Generic, Show, Read)
+    deriving stock (Eq, Generic, Show)
 
 instance FromJSON PublicKey where
     parseJSON = withObject "PublicKey" $ \v ->
@@ -101,18 +101,9 @@ data PublicKeyBundle
     , pkbPublic :: PublicKey
     }
     deriving stock (Eq, Generic, Show)
-instance FromJSON PublicKeyBundle where
-    parseJSON = withObject "PublicKeyBundle" $ \v ->
-        PublicKeyBundle
-            <$> fmap read (v .: "id")
-            <*> fmap read (v .: "public")
-
-instance ToJSON PublicKeyBundle where
-    toJSON (PublicKeyBundle pkbId pkbPublic) =
-        object
-            [ "id" .= show pkbId
-            , "public" .= show pkbPublic
-            ]
+    deriving
+        (FromJSON, ToJSON)
+        via CustomJSON '[FieldLabelModifier '[StripPrefix "pkb", CamelToSnake]] PublicKeyBundle
 
 instance ToSchema PublicKeyBundle where
     declareNamedSchema =
