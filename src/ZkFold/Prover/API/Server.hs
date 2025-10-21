@@ -10,7 +10,6 @@ import Control.Concurrent.STM (newTQueueIO, newTVarIO, writeTVar)
 import Control.Concurrent.STM.TVar (readTVarIO)
 import Control.Monad (forever, replicateM_)
 import Control.Monad.STM (atomically)
-import Data.Binary
 import Data.Pool
 import Data.Time (diffUTCTime, nominalDay)
 import Data.Time.Clock (
@@ -18,7 +17,7 @@ import Data.Time.Clock (
     getCurrentTime,
     nominalDiffTimeToSeconds,
  )
-import Database.PostgreSQL.Simple
+import Database.SQLite.Simple
 import ZkFold.Prover.API.Database (initDatabase)
 import Network.Wai (Middleware)
 import Network.Wai.Handler.Warp (run)
@@ -32,11 +31,7 @@ import ZkFold.Prover.API.Types.ProveAlgorithm (ProveAlgorithm)
 
 data ServerConfig = ServerConfig
     { serverPort :: Int
-    , dbPort :: Word16
-    , dbHost :: String
-    , dbName :: String
-    , dbUser :: String
-    , dbPassword :: String
+    , dbFile :: String
     , nWorkers :: Int
     , contractId :: Int
     }
@@ -80,15 +75,8 @@ runServer ServerConfig{..} = do
     newKey <- randomKeyPair period
     keysVar <- newTVarIO [oldKey, newKey]
     queue <- newTQueueIO
-    let connectInfo =
-            defaultConnectInfo
-                { connectHost = dbHost
-                , connectDatabase = dbName
-                , connectUser = dbUser
-                , connectPassword = dbPassword
-                , connectPort = dbPort
-                }
-    pool <- newPool $ defaultPoolConfig (connect connectInfo) close 60 20
+
+    pool <- newPool $ defaultPoolConfig (open dbFile) close 60 20
     withResource pool initDatabase
 
     let

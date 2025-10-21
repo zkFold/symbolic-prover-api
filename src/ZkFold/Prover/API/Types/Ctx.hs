@@ -6,7 +6,7 @@ module ZkFold.Prover.API.Types.Ctx (
 import Control.Concurrent.STM (TQueue, TVar)
 
 import Data.Pool
-import Database.PostgreSQL.Simple
+import Database.SQLite.Simple
 import ZkFold.Prover.API.Types.Encryption
 import ZkFold.Prover.API.Types.Prove
 

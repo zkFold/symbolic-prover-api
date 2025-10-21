@@ -1,5 +1,6 @@
 {-# LANGUAGE AllowAmbiguousTypes #-}
 {-# LANGUAGE FlexibleInstances #-}
+{-# OPTIONS_GHC -Wno-orphans #-}
 
 module ZkFold.Prover.API.Database where
 
@@ -12,38 +13,53 @@ import Data.ByteString (ByteString)
 import Data.Int
 import Data.Maybe
 import Data.OpenApi
-import Data.Text (unpack)
-import Data.Text.Encoding (decodeUtf8)
 import Data.UUID
-import Database.PostgreSQL.Simple
-import Database.PostgreSQL.Simple.FromField (FromField (fromField), returnError)
-import Database.PostgreSQL.Simple.FromRow
-import Database.PostgreSQL.Simple.Time
+import Database.SQLite.Simple
+import Database.SQLite.Simple.FromField (FromField (fromField), returnError, fieldData)
 import GHC.Generics
 import ZkFold.Prover.API.Types.Prove
 import ZkFold.Prover.API.Utils
 import Prelude hiding (id)
+import Data.Time (UTCTime)
+import System.IO.Unsafe (unsafePerformIO)
+import Database.SQLite.Simple.ToField (ToField (toField))
 
 data Status = Pending | Completed | Failed
     deriving stock (Generic, Show)
     deriving anyclass (ToJSON, FromJSON)
 
 instance FromField Status where
-    fromField f mdata = do
-        case unpack $ decodeUtf8 $ fromJust mdata of
-            "PENDING" -> pure Pending
-            "COMPLETED" -> pure Completed
-            "FAILED" -> pure Failed
-            status -> returnError ConversionFailed f ("Unexpected status: " <> status)
+    fromField f = unsafePerformIO $ do
+        print $ fieldData f
+        pure $ case fieldData f of
+            SQLText text -> case text of
+                "PENDING" -> pure Pending
+                "COMPLETED" -> pure Completed
+                "FAILED" -> pure Failed
+                status -> returnError ConversionFailed f ("Unexpected status: " <> show status)
+            sqlData -> returnError ConversionFailed f ("Unexpected data in status: " <> show sqlData)
+
+instance FromField UUID where
+    fromField f = unsafePerformIO $ do
+        print $ fieldData f
+        pure $ case fieldData f of
+            SQLText uuidText -> case fromText uuidText of
+                Just uuid -> pure uuid
+                Nothing -> returnError ConversionFailed f ("Incorrect uuid format: " <> show uuidText)
+            sqlData -> returnError ConversionFailed f ("Unexpected data in uuid field: " <> show sqlData)
+
+instance ToField UUID where
+    toField = SQLText . toText
+
 
 data Record = Record
     { id :: Int
     , queryUUID :: UUID
     , status :: Status
     , contractId :: Int
-    , createTime :: UTCTimestamp
+    , createTime :: UTCTime
     , proofBytes :: Maybe ByteString
-    , proofTime :: Maybe UTCTimestamp
+    , proofTime :: Maybe UTCTime
     }
     deriving (Generic, Show)
 
@@ -63,51 +79,40 @@ instance FromRow Record where
         proofTime <- field
         pure $ Record{..}
 
-createQueryStatusType :: Query
-createQueryStatusType =
-    " \
-    \ DO $$ \
-    \ BEGIN \
-    \   IF NOT EXISTS (SELECT 1 FROM PG_TYPE WHERE TYPNAME = 'status') THEN \
-    \     CREATE TYPE STATUS AS ENUM ('PENDING', 'COMPLETED', 'FAILED'); \
-    \   END IF; \
-    \ END $$; \
-    \ "
-
 createQueryTable :: Query
 createQueryTable =
     " \
     \ CREATE TABLE IF NOT EXISTS prove_request_table ( \
-    \     id SERIAL PRIMARY KEY, \
-    \     query_uuid uuid NOT NULL DEFAULT gen_random_uuid(), \
-    \     status status NOT NULL, \
+    \     id INTEGER PRIMARY KEY AUTOINCREMENT, \
+    \     query_uuid varchar(36) NOT NULL, \
+    \     status varchar(16) NOT NULL, \
     \     contract_id INT NOT NULL, \
-    \     create_time TIMESTAMPTZ NOT NULL DEFAULT NOW(), \
-    \     proof_bytes BYTEA, \
-    \     proof_time TIMESTAMPTZ \
+    \     create_time TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP, \
+    \     proof_bytes BLOB, \
+    \     proof_time TEXT \
     \ ); \
     \ "
 
 initDatabase :: Connection -> IO ()
 initDatabase conn = do
-    void $ execute_ conn createQueryStatusType
     void $ execute_ conn createQueryTable
 
-addNewProveQuery :: Connection -> Int -> IO (Int, UUID)
-addNewProveQuery conn contractId = do
-    [result] <-
+addNewProveQuery :: Connection -> Int -> UUID -> IO Int
+addNewProveQuery conn contractId uuid = do
+    [Only result] <-
         query
             conn
             " \
             \ INSERT INTO \
             \     prove_request_table ( \
+            \         query_uuid, \
             \         status, \
             \         contract_id \
             \     ) \
-            \ VALUES ('PENDING', ?) \
-            \ RETURNING id, query_uuid; \
+            \ VALUES (?, 'PENDING', ?) \
+            \ RETURNING id; \
             \ "
-            (Only contractId)
+            (uuid, contractId)
     pure result
 
 getProofStatus ::
@@ -184,7 +189,7 @@ finishTask conn id proofBytes = do
             \ UPDATE prove_request_table \
             \ SET status = 'COMPLETED', \
             \     proof_bytes = ?, \
-            \     proof_time = NOW() \
+            \     proof_time = CURRENT_TIMESTAMP  \
             \ WHERE id = ?; \
             \ "
             (proofBytes, id)
