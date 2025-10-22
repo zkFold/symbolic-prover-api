@@ -101,7 +101,9 @@ data PublicKeyBundle
     , pkbPublic :: PublicKey
     }
     deriving stock (Eq, Generic, Show)
-    deriving anyclass (FromJSON, ToJSON)
+    deriving
+        (FromJSON, ToJSON)
+        via CustomJSON '[FieldLabelModifier '[StripPrefix "pkb", CamelToSnake]] PublicKeyBundle
 
 instance ToSchema PublicKeyBundle where
     declareNamedSchema =
