@@ -72,11 +72,7 @@ main :: IO ()
 main = do
     serverPort <- execParser opts
     let
-        dbHost = "localhost"
-        dbName = "postgres"
-        dbUser = "postgres"
-        dbPassword = "password"
-        dbPort = 5432
+        dbFile = "sqlite-database.db"
         nWorkers = 3
         contractId = 1
 

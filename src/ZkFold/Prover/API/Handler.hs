@@ -27,6 +27,7 @@ import ZkFold.Prover.API.Types
 import ZkFold.Prover.API.Types.Encryption ()
 import ZkFold.Prover.API.Types.ProveAlgorithm (ProveAlgorithm)
 import Prelude hiding (id)
+import Data.UUID.V4 (nextRandom)
 
 type KeysEndpoint =
     Summary "Get server public keys."
@@ -110,7 +111,8 @@ handleGetKeys Ctx{..} = getPublicKeys ctxServerKeys
 handleProve :: forall i. Ctx i -> ZKProveRequest -> Handler ProofId
 handleProve Ctx{..} zkpr = do
     liftIO $ withResource ctxConnectionPool $ \conn -> do
-        (id, uuid) <- addNewProveQuery conn ctxContractId
+        uuid <- nextRandom
+        id <- addNewProveQuery conn ctxContractId uuid
         atomically $ writeTQueue ctxProofQueue (id, Encrypted zkpr)
         pure $ ProofId uuid
 
@@ -120,7 +122,8 @@ handleProofStatus Ctx{..} pid = liftIO $ withResource ctxConnectionPool $ \conn 
 handleProveUnencrypted :: forall i. Ctx i -> i -> Handler ProofId
 handleProveUnencrypted Ctx{..} w = do
     liftIO $ withResource ctxConnectionPool $ \conn -> do
-        (id, uuid) <- addNewProveQuery conn ctxContractId
+        uuid <- nextRandom
+        id <- addNewProveQuery conn ctxContractId uuid
         atomically $ writeTQueue ctxProofQueue (id, Unencrypted w)
         pure $ ProofId uuid
 

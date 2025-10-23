@@ -1,30 +1,18 @@
 # Symbolic Prover API
 REST API server for zkFold Symbolic proof generation. Leverages the [Symbolic](https://github.com/zkFold/symbolic/tree/main) framework.
 
-# Build
-## Source
-The package compiles with GHC 9.12.1 and Cabal 3.14.1.1.
+
+# Run server
+Before running, you need to make sure you have installed `sqlite3`.
+
+For run simple prover server
+```bash
+cabal run zkfold-prover-api -- --port 8083
 ```
-make build
-```
-<!-- Docker currently does not support ghc version 9.12.1 -->
-<!-- ## Docker
-```
-make docker-build
-``` -->
-# Run
-## Host
-```
-make run
-```
-<!-- ## Docker
-```
-make docker-run
-``` -->
 
 # Example query
 ```
-curl -X POST -H "Content-Type: application/json" -d @examples/simple-witness.json localhost:8080/prove
+curl -X POST -H "Content-Type: application/json" -d @examples/simple-witness.json localhost:8083/v0/prove-unencrypted
 ```
 
 # Tests
