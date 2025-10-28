@@ -69,6 +69,9 @@ library
     ZkFold.Prover.API.Encryption
     ZkFold.Prover.API.Executor
     ZkFold.Prover.API.Orphans
+    ZkFold.Prover.API.Handler.General
+    ZkFold.Prover.API.Handler.Encrypted
+    ZkFold.Prover.API.Handler.Unencrypted
     ZkFold.Prover.API.Types
     ZkFold.Prover.API.Types.Common
     ZkFold.Prover.API.Types.Ctx
@@ -76,7 +79,6 @@ library
     ZkFold.Prover.API.Types.Errors
     ZkFold.Prover.API.Types.Prove
     ZkFold.Prover.API.Types.ProveAlgorithm
-    ZkFold.Prover.API.Handler
     ZkFold.Prover.API.Utils
     ZkFold.Prover.API.Database
   build-depends:       

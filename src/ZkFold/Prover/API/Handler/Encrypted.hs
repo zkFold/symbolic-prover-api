@@ -1,0 +1,79 @@
+{-# LANGUAGE AllowAmbiguousTypes #-}
+
+module ZkFold.Prover.API.Handler.Encrypted where
+
+import Control.Concurrent.STM (atomically, writeTQueue)
+import Control.Lens ((?~))
+import Control.Lens.Lens
+import Control.Monad.IO.Class
+import Data.Aeson
+import Data.Data
+import Data.OpenApi (OpenApi, applyTagsFor)
+import Data.OpenApi qualified as OpenApi
+import Data.Pool
+import Data.UUID.V4 (nextRandom)
+import Servant
+import Servant.OpenApi
+import Servant.Swagger ()
+import Servant.Swagger.UI
+import ZkFold.Prover.API.Database
+import ZkFold.Prover.API.Encryption
+import ZkFold.Prover.API.Handler.General (MainAPI, ProofStatusEndpoint, V0, baseOpenApi, handleProofStatus)
+import ZkFold.Prover.API.Types
+import ZkFold.Prover.API.Types.Encryption ()
+import ZkFold.Prover.API.Types.ProveAlgorithm (ProveAlgorithm)
+import Prelude hiding (id)
+
+type KeysEndpoint =
+    Summary "Get server public keys."
+        :> "keys"
+        :> Get '[JSON] [PublicKeyBundle]
+
+type ProveEncryptedEndpoint =
+    Summary "Submit data for proving."
+        :> "prove"
+        :> ReqBody '[JSON] ZKProveRequest
+        :> Post '[JSON] ProofId
+
+type ProverEncryptedEndpoints i o =
+    ProofStatusEndpoint o
+        :<|> KeysEndpoint
+        :<|> ProveEncryptedEndpoint
+
+openApi :: forall i o. (ProveAlgorithm i o) => OpenApi
+openApi =
+    baseOpenApi (toOpenApi proxy)
+        & applyTagsFor
+            (subOperations (Proxy :: Proxy (V0 :> ProofStatusEndpoint o)) proxy)
+            ["Proof status" & OpenApi.description ?~ "Endpoint to get information about proof status"]
+        & applyTagsFor
+            (subOperations (Proxy :: Proxy (V0 :> KeysEndpoint)) proxy)
+            ["Keys" & OpenApi.description ?~ "Endpoint to get server public keys"]
+        & applyTagsFor
+            (subOperations (Proxy :: Proxy (V0 :> ProveEncryptedEndpoint)) proxy)
+            ["Prove" & OpenApi.description ?~ "Endpoint to create task for prove"]
+  where
+    proxy = Proxy :: Proxy (V0 :> ProverEncryptedEndpoints i o)
+
+handleGetKeys :: forall i. Ctx i -> Handler [PublicKeyBundle]
+handleGetKeys Ctx{..} = getPublicKeys ctxServerKeys
+
+handleProve :: forall i. Ctx i -> ZKProveRequest -> Handler ProofId
+handleProve Ctx{..} zkpr = do
+    liftIO $ withResource ctxConnectionPool $ \conn -> do
+        uuid <- nextRandom
+        id <- addNewProveQuery conn ctxContractId uuid
+        atomically $ writeTQueue ctxProofQueue (id, Encrypted zkpr)
+        pure $ ProofId uuid
+
+handleProverApi :: forall i o. (FromJSON o) => Ctx i -> Servant.Server (V0 :> ProverEncryptedEndpoints i o)
+handleProverApi ctx =
+    handleProofStatus ctx
+        :<|> handleGetKeys ctx
+        :<|> handleProve ctx
+
+mainApi :: forall i o. Proxy (MainAPI (V0 :> ProverEncryptedEndpoints i o))
+mainApi = Proxy
+
+mainServer :: forall i o. (ProveAlgorithm i o) => Ctx i -> Servant.Server (MainAPI (V0 :> ProverEncryptedEndpoints i o))
+mainServer ctx = handleProverApi @i @o ctx :<|> swaggerSchemaUIServerT (openApi @i @o)

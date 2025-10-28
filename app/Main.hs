@@ -22,6 +22,7 @@ import ZkFold.Protocol.Plonkup.Prover (PlonkupProverSecret)
 import ZkFold.Protocol.Plonkup.Utils
 import ZkFold.Protocol.Plonkup.Witness
 import ZkFold.Prover.API.Server
+import ZkFold.Prover.API.Types.Ctx (EncryptionMode (EncryptedMode))
 import ZkFold.Prover.API.Types.ProveAlgorithm (ProveAlgorithm (proveAlgorithm))
 import ZkFold.Symbolic.Class
 import ZkFold.Symbolic.Compiler
@@ -75,6 +76,7 @@ main = do
         dbFile = "sqlite-database.db"
         nWorkers = 3
         contractId = 1
+        encryptionMode = EncryptedMode
 
     let serverConfig = ServerConfig{..}
     print @String ("Started with " <> show serverConfig)
