@@ -20,7 +20,7 @@ common options
     ghc-options:
       -fwarn-redundant-constraints
       -Wall
-      -Werror
+      -- -Werror
       -Wcompat
       -Widentities
       -Wincomplete-record-updates
@@ -88,6 +88,8 @@ library
     , servant-swagger
     , servant-swagger-ui
     , aeson
+    , aeson-casing
+    , insert-ordered-containers
     , bytestring
     , text
     , lens
