@@ -36,7 +36,7 @@ baseOpenApi api =
         api
         & info
             . OpenApi.title
-            .~ "zkFold Smart Wallet Server API"
+            .~ "zkFold Prover Server API"
         & info
             . version
             .~ "0.0.1"
@@ -55,7 +55,7 @@ baseOpenApi api =
                )
         & info
             . OpenApi.description
-            ?~ "API to interact with zkFold Smart Wallet Prover Server"
+            ?~ "API to interact with zkFold Prover Server"
         
 
 handleProofStatus :: forall i o. (FromJSON o) => Ctx i -> ProofId -> Handler (ProofStatus o)

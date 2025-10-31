@@ -44,14 +44,8 @@ openApi :: forall i o. (ProveAlgorithm i o) => OpenApi
 openApi =
     baseOpenApi (toOpenApi proxy)
         & applyTagsFor
-            (subOperations (Proxy :: Proxy (V0 :> ProofStatusEndpoint o)) proxy)
-            ["Proof status" & OpenApi.description ?~ "Endpoint to get information about proof status"]
-        & applyTagsFor
-            (subOperations (Proxy :: Proxy (V0 :> KeysEndpoint)) proxy)
-            ["Keys" & OpenApi.description ?~ "Endpoint to get server public keys"]
-        & applyTagsFor
-            (subOperations (Proxy :: Proxy (V0 :> ProveEncryptedEndpoint)) proxy)
-            ["Prove" & OpenApi.description ?~ "Endpoint to create task for prove"]
+            (subOperations proxy proxy)
+            ["ZK prover endpoints" & OpenApi.description ?~ "Get server public keys, submit a proof and get proof status."]
   where
     proxy = Proxy :: Proxy (V0 :> ProverEncryptedEndpoints i o)
 
