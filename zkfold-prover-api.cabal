@@ -116,6 +116,7 @@ library
     , wai-cors
     , wai-extra
     , warp
+    , symbolic-examples
   hs-source-dirs:      src
 
 executable zkfold-prover-api

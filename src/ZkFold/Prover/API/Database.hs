@@ -13,16 +13,17 @@ import Data.ByteString (ByteString)
 import Data.Int
 import Data.Maybe
 import Data.OpenApi
+import Data.Time (UTCTime)
 import Data.UUID
 import Database.SQLite.Simple
-import Database.SQLite.Simple.FromField (FromField (fromField), returnError, fieldData)
+import Database.SQLite.Simple.FromField (FromField (fromField), fieldData, returnError)
+import Database.SQLite.Simple.ToField (ToField (toField))
 import GHC.Generics
-import ZkFold.Prover.API.Types.Prove
+import System.IO.Unsafe (unsafePerformIO)
+import ZkFold.Prover.API.Types.Prove hiding (ProofStatus (..))
+import qualified ZkFold.Prover.API.Types.Prove as P
 import ZkFold.Prover.API.Utils
 import Prelude hiding (id)
-import Data.Time (UTCTime)
-import System.IO.Unsafe (unsafePerformIO)
-import Database.SQLite.Simple.ToField (ToField (toField))
 
 data Status = Pending | Completed | Failed
     deriving stock (Generic, Show)
@@ -50,7 +51,6 @@ instance FromField UUID where
 
 instance ToField UUID where
     toField = SQLText . toText
-
 
 data Record = Record
     { id :: Int
@@ -118,7 +118,7 @@ addNewProveQuery conn contractId uuid = do
 getProofStatus ::
     forall o.
     (FromJSON o) =>
-    Connection -> ProofId -> IO (Status, Maybe (ZKProveResult o))
+    Connection -> ProofId -> IO (P.ProofStatus o)
 getProofStatus conn (ProofId uuid) = do
     [(status, mProof, mTime)] <-
         query
@@ -133,15 +133,17 @@ getProofStatus conn (ProofId uuid) = do
             \     query_uuid = ? \
             \ "
             (Only uuid)
-
-    pure
-        ( status
-        , do
+    let mResult = do
             proofJson <- mProof
             time <- mTime
             proof <- decode proofJson
             pure $ ZKProveResult proof time
-        )
+
+    pure $ case (status, mResult) of
+        (Pending, Nothing) -> P.Pending
+        (Completed, Just result) -> P.Completed result
+        (Failed, _) -> P.Failed
+        _ -> P.Failed
 
 getRecord :: Connection -> Int -> IO Record
 getRecord conn id = do

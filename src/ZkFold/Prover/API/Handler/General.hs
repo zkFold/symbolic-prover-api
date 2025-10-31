@@ -29,7 +29,7 @@ type ProofStatusEndpoint o =
     Summary "Check the status of a proof."
         :> "proof-status"
         :> ReqBody '[JSON] ProofId
-        :> Post '[JSON] (Status, Maybe (ZKProveResult o))
+        :> Post '[JSON] (ProofStatus o)
 
 baseOpenApi :: OpenApi -> OpenApi
 baseOpenApi api =
@@ -58,5 +58,5 @@ baseOpenApi api =
             ?~ "API to interact with zkFold Smart Wallet Prover Server"
         
 
-handleProofStatus :: forall i o. (FromJSON o) => Ctx i -> ProofId -> Handler (Status, Maybe (ZKProveResult o))
+handleProofStatus :: forall i o. (FromJSON o) => Ctx i -> ProofId -> Handler (ProofStatus o)
 handleProofStatus Ctx{..} pid = liftIO $ withResource ctxConnectionPool $ \conn -> getProofStatus @o conn pid

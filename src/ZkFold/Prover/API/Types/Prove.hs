@@ -1,9 +1,11 @@
 {-# LANGUAGE UndecidableInstances #-}
+{-# LANGUAGE StandaloneDeriving #-}
 
 module ZkFold.Prover.API.Types.Prove (
     ZKProveRequest (..),
     ZKProveResult (..),
     ProofId (..),
+    ProofStatus(..)
 ) where
 
 import Data.Time.Clock (UTCTime)
@@ -22,15 +24,29 @@ import ZkFold.Prover.API.Orphans ()
 import ZkFold.Prover.API.Types.Common (addDescription, addFieldDescription)
 import ZkFold.Prover.API.Types.Encryption (KeyID)
 import ZkFold.Prover.API.Utils
+import ZkFold.Symbolic.Examples.SmartWallet (ByteStringFromHex (..))
 
 data ZKProveRequest
-    = ZKProveRequest
-    { preqKeyId :: KeyID
-    , preqAES :: String
-    , preqPayload :: String
-    }
-    deriving stock (Eq, Generic, Ord, Show)
-    deriving anyclass (FromJSON, ToJSON)
+  = ZKProveRequest
+  { preqServerKeyId ∷ KeyID
+  , preqAesEncryptionKey ∷ ByteStringFromHex
+  , preqEncryptedPayload ∷ ByteStringFromHex
+  }
+  deriving stock (Eq, Generic, Ord, Show)
+  deriving
+    (FromJSON, ToJSON)
+    via CustomJSON '[FieldLabelModifier '[StripPrefix "preq", CamelToSnake]] ZKProveRequest
+
+data ProofStatus o = Pending | Failed | Completed (ZKProveResult o)
+  deriving stock (Generic)
+  deriving anyclass (FromJSON, ToJSON)
+
+deriving instance (Show (ZKProveResult o)) => Show (ProofStatus o)
+
+instance (ToSchema o) => Swagger.ToSchema (ProofStatus o) where
+  declareNamedSchema =
+    Swagger.genericDeclareNamedSchema Swagger.defaultSchemaOptions
+      & addSwaggerDescription "Status of a submitted proof"
 
 instance Swagger.ToSchema ZKProveRequest where
     declareNamedSchema _ = do
