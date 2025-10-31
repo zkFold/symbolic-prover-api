@@ -37,7 +37,7 @@ data ZKProveRequest
     (FromJSON, ToJSON)
     via CustomJSON '[FieldLabelModifier '[StripPrefix "preq", CamelToSnake]] ZKProveRequest
 
-data ProofStatus o = Pending | Failed | Completed (ZKProveResult o)
+data ProofStatus o = Completed (ZKProveResult o) | Pending | Failed
   deriving stock (Generic)
   deriving anyclass (FromJSON, ToJSON)
 
@@ -97,13 +97,13 @@ It might be useful if we decide to remove old results.
 -}
 data ZKProveResult o
     = ZKProveResult
-    { presProof :: o
+    { presBytes :: o
     , presTimestamp :: UTCTime
     }
-    deriving stock (Generic)
-
-instance (ToJSON o) => ToJSON (ZKProveResult o)
-instance (FromJSON o) => FromJSON (ZKProveResult o)
+  deriving stock (Generic, Show)
+  deriving
+    (FromJSON, ToJSON)
+    via CustomJSON '[FieldLabelModifier '[StripPrefix "pres", CamelToSnake]] (ZKProveResult o)
 
 instance forall o. (Typeable o, ToSchema o) => ToSchema (ZKProveResult o) where
     declareNamedSchema =
