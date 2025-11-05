@@ -11,7 +11,7 @@ import Control.Concurrent.STM.TVar (readTVarIO)
 import Control.Monad (forever, replicateM_)
 import Control.Monad.STM (atomically)
 import Data.Pool
-import Data.Time (diffUTCTime, nominalDay)
+import Data.Time (diffUTCTime, secondsToNominalDiffTime)
 import Data.Time.Clock (
     NominalDiffTime,
     getCurrentTime,
@@ -37,6 +37,8 @@ data ServerConfig = ServerConfig
     , nWorkers :: Int
     , contractId :: Int
     , encryptionMode :: EncryptionMode
+    , proofLifetimeDays :: Int
+    , keysLifetimeSeconds :: Int
     }
     deriving (Eq, Show)
 
@@ -61,7 +63,7 @@ keyUpdater :: Ctx nip -> NominalDiffTime -> IO ()
 keyUpdater ctx period = forever $ do
     [old, new] <- readTVarIO $ ctxServerKeys ctx
     time <- getCurrentTime
-    let sleepTime = fromEnum (nominalDiffTimeToSeconds (kpExpires old `diffUTCTime` time)) `div` 1000000
+    let sleepTime = fromEnum (nominalDiffTimeToSeconds (kpExpires old `diffUTCTime` time)) `div` (10 ^ (6 :: Int))
     threadDelay sleepTime
     newest <- randomKeyPair period
     atomically $ writeTVar (ctxServerKeys ctx) [new, newest]
@@ -78,8 +80,7 @@ runServer ::
     ) =>
     ServerConfig -> IO ()
 runServer ServerConfig{..} = do
-    let keyLifetime = nominalDay
-    let proofLifetimeDays = 30
+    let keyLifetime = secondsToNominalDiffTime $ toEnum $ keysLifetimeSeconds * (10 ^ (12 :: Int))
     oldKey <- randomKeyPair (keyLifetime / 2)
     newKey <- randomKeyPair keyLifetime
     keysVar <- newTVarIO [oldKey, newKey]

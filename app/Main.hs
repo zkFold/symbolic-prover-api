@@ -77,6 +77,8 @@ main = do
         nWorkers = 3
         contractId = 1
         encryptionMode = UnencryptedMode
+        keysLifetimeSeconds = 86400
+        proofLifetimeDays = 30
 
     let serverConfig = ServerConfig{..}
     print @String ("Started with " <> show serverConfig)
