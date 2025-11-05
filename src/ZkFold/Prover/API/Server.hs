@@ -23,7 +23,8 @@ import Network.Wai.Handler.Warp (run)
 import Network.Wai.Middleware.Cors (CorsResourcePolicy (..), cors, corsRequestHeaders)
 import Network.Wai.Middleware.RequestLogger (logStdout)
 import Servant
-import ZkFold.Prover.API.Database (initDatabase)
+import System.Cron.Schedule
+import ZkFold.Prover.API.Database (deleteOldProofs, initDatabase)
 import ZkFold.Prover.API.Executor
 import ZkFold.Prover.API.Handler.Encrypted qualified as Encrypted
 import ZkFold.Prover.API.Handler.Unencrypted qualified as Unencrypted
@@ -65,6 +66,11 @@ keyUpdater ctx period = forever $ do
     newest <- randomKeyPair period
     atomically $ writeTVar (ctxServerKeys ctx) [new, newest]
 
+oldProofDeleter :: Ctx nip -> Int -> IO ()
+oldProofDeleter ctx maxDays = do
+    withResource (ctxConnectionPool ctx) $ \conn -> do
+        deleteOldProofs conn maxDays
+
 runServer ::
     forall i o.
     ( ProveAlgorithm i o
@@ -72,9 +78,10 @@ runServer ::
     ) =>
     ServerConfig -> IO ()
 runServer ServerConfig{..} = do
-    let period = nominalDay
-    oldKey <- randomKeyPair (period / 2)
-    newKey <- randomKeyPair period
+    let keyLifetime = nominalDay
+    let proofLifetimeDays = 30
+    oldKey <- randomKeyPair (keyLifetime / 2)
+    newKey <- randomKeyPair keyLifetime
     keysVar <- newTVarIO [oldKey, newKey]
     queue <- newTQueueIO
 
@@ -91,7 +98,9 @@ runServer ServerConfig{..} = do
                 , ctxEncryptionMode = encryptionMode
                 }
 
-    _keyUpdaterThreadId <- forkIO $ keyUpdater ctx period
+    _oldProofsDeleterThreadId <- execSchedule $ do
+        addJob (oldProofDeleter ctx proofLifetimeDays) "0 0 * * *"
+    _keyUpdaterThreadId <- forkIO $ keyUpdater ctx keyLifetime
 
     replicateM_ nWorkers $ forkIO (proofExecutor @i @o ctx)
 

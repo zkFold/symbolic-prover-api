@@ -1,4 +1,5 @@
 {-# LANGUAGE AllowAmbiguousTypes #-}
+
 module ZkFold.Prover.API.Handler.Unencrypted where
 
 import Control.Concurrent.STM (atomically, writeTQueue)
@@ -16,7 +17,7 @@ import Servant.OpenApi
 import Servant.Swagger ()
 import Servant.Swagger.UI
 import ZkFold.Prover.API.Database
-import ZkFold.Prover.API.Handler.General (MainAPI, ProofStatusEndpoint, V0, handleProofStatus, baseOpenApi)
+import ZkFold.Prover.API.Handler.General (MainAPI, ProofStatusEndpoint, V0, baseOpenApi, handleProofStatus)
 import ZkFold.Prover.API.Types
 import ZkFold.Prover.API.Types.Encryption ()
 import ZkFold.Prover.API.Types.ProveAlgorithm (ProveAlgorithm)
@@ -45,8 +46,8 @@ handleProve :: forall i. Ctx i -> i -> Handler ProofId
 handleProve Ctx{..} w = do
     liftIO $ withResource ctxConnectionPool $ \conn -> do
         uuid <- nextRandom
-        id <- addNewProveQuery conn ctxContractId uuid
-        atomically $ writeTQueue ctxProofQueue (id, Unencrypted w)
+        addNewProveQuery conn ctxContractId uuid
+        atomically $ writeTQueue ctxProofQueue (uuid, Unencrypted w)
         pure $ ProofId uuid
 
 handleProverApi :: forall i o. (FromJSON o) => Ctx i -> Servant.Server (V0 :> ProverUnencryptedEndpoint i o)

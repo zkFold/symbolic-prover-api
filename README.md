@@ -12,7 +12,7 @@ cabal run zkfold-prover-api -- --port 8083
 
 # Example query
 ```
-curl -X POST -H "Content-Type: application/json" -d @examples/simple-witness.json localhost:8083/v0/prove-unencrypted
+curl -X POST -H "Content-Type: application/json" -d @examples/simple-witness.json localhost:8083/v0/prove
 ```
 
 # Tests

@@ -21,7 +21,7 @@ import Database.SQLite.Simple.ToField (ToField (toField))
 import GHC.Generics
 import System.IO.Unsafe (unsafePerformIO)
 import ZkFold.Prover.API.Types.Prove hiding (ProofStatus (..))
-import qualified ZkFold.Prover.API.Types.Prove as P
+import ZkFold.Prover.API.Types.Prove qualified as P
 import ZkFold.Prover.API.Utils
 import Prelude hiding (id)
 
@@ -53,8 +53,7 @@ instance ToField UUID where
     toField = SQLText . toText
 
 data Record = Record
-    { id :: Int
-    , queryUUID :: UUID
+    { queryUUID :: UUID
     , status :: Status
     , contractId :: Int
     , createTime :: UTCTime
@@ -70,7 +69,6 @@ instance ToSchema Status where
 
 instance FromRow Record where
     fromRow = do
-        id <- field
         queryUUID <- field
         status <- field
         contractId <- field
@@ -83,8 +81,7 @@ createQueryTable :: Query
 createQueryTable =
     " \
     \ CREATE TABLE IF NOT EXISTS prove_request_table ( \
-    \     id INTEGER PRIMARY KEY AUTOINCREMENT, \
-    \     query_uuid varchar(36) NOT NULL, \
+    \     query_uuid varchar(36) PRIMARY KEY NOT NULL, \
     \     status varchar(16) NOT NULL, \
     \     contract_id INT NOT NULL, \
     \     create_time TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP, \
@@ -97,10 +94,10 @@ initDatabase :: Connection -> IO ()
 initDatabase conn = do
     void $ execute_ conn createQueryTable
 
-addNewProveQuery :: Connection -> Int -> UUID -> IO Int
+addNewProveQuery :: Connection -> Int -> UUID -> IO ()
 addNewProveQuery conn contractId uuid = do
-    [Only result] <-
-        query
+    void $
+        execute
             conn
             " \
             \ INSERT INTO \
@@ -110,10 +107,8 @@ addNewProveQuery conn contractId uuid = do
             \         contract_id \
             \     ) \
             \ VALUES (?, 'PENDING', ?) \
-            \ RETURNING id; \
             \ "
             (uuid, contractId)
-    pure result
 
 getProofStatus ::
     forall o.
@@ -145,14 +140,13 @@ getProofStatus conn (ProofId uuid) = do
         (Failed, _) -> P.Failed
         _ -> P.Failed
 
-getRecord :: Connection -> Int -> IO Record
-getRecord conn id = do
+getRecord :: Connection -> UUID -> IO Record
+getRecord conn uuid = do
     [record] <-
         query
             conn
             " \
             \ SELECT \
-            \     id, \
             \     query_uuid, \
             \     status, \
             \     contract_id, \
@@ -161,29 +155,29 @@ getRecord conn id = do
             \     proof_time \
             \ FROM prove_request_table \
             \ WHERE \
-            \     id = ? \
+            \     query_uuid = ? \
             \ "
-            (Only id)
+            (Only uuid)
     pure record
 
-markAsFailed :: Connection -> Int -> IO ()
-markAsFailed conn id = do
+markAsFailed :: Connection -> UUID -> IO ()
+markAsFailed conn uuid = do
     void $
         execute
             conn
             " \
             \ UPDATE prove_request_table \
             \ SET status = 'FAILED' \
-            \ WHERE id = ?; \
+            \ WHERE query_uuid = ?; \
             \ "
-            (Only id)
+            (Only uuid)
 
 finishTask ::
     Connection ->
-    Int ->
+    UUID ->
     ByteString ->
     IO ()
-finishTask conn id proofBytes = do
+finishTask conn uuid proofBytes = do
     void $
         execute
             conn
@@ -192,6 +186,17 @@ finishTask conn id proofBytes = do
             \ SET status = 'COMPLETED', \
             \     proof_bytes = ?, \
             \     proof_time = CURRENT_TIMESTAMP  \
-            \ WHERE id = ?; \
+            \ WHERE query_uuid = ?; \
             \ "
-            (proofBytes, id)
+            (proofBytes, uuid)
+
+deleteOldProofs :: Connection -> Int -> IO ()
+deleteOldProofs conn days = do
+    void $
+        execute
+            conn
+            " \
+            \ DELETE FROM prove_request_table \
+            \ WHERE julianday('now') - julianday(create_time) >= ? \
+            \ "
+            (Only days)
