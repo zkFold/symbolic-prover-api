@@ -8,7 +8,7 @@ import Database.SQLite.Simple.FromField
 import GHC.Generics
 import ZkFold.Prover.API.Utils
 
-data Status = Completed | Pending | Failed
+data Status = Completed | Pending | Failed | NotFound
     deriving stock (Generic, Show)
     deriving anyclass (ToJSON, FromJSON)
 
