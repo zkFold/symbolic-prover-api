@@ -29,9 +29,9 @@ import Data.Char (isLower)
 import Data.Coerce (coerce)
 import Data.HashMap.Strict.InsOrd qualified as InsOrd
 import Data.Maybe (fromMaybe)
-import Data.OpenApi as Swagger
-import Data.OpenApi.Declare as Swagger
 import Data.Proxy
+import Data.Swagger as Swagger
+import Data.Swagger.Declare as Swagger
 import Data.Text (Text)
 import Data.Time.Clock (NominalDiffTime, UTCTime, addUTCTime, getCurrentTime)
 import Data.UUID (UUID)
@@ -39,7 +39,6 @@ import Data.UUID qualified as UUID
 import Data.UUID.V4 qualified as UUID
 import Deriving.Aeson
 import GHC.Natural (Natural)
-import ZkFold.Prover.API.Orphans ()
 import ZkFold.Prover.API.Types.Common
 import ZkFold.Prover.API.Types.Errors
 import ZkFold.Prover.API.Utils
@@ -84,7 +83,7 @@ instance Swagger.ToSchema PublicKey where
         let publicKeySchema =
                 Swagger.NamedSchema (Just "PublicKey") $
                     mempty
-                        & Swagger.type_ ?~ Swagger.OpenApiObject
+                        & Swagger.type_ ?~ Swagger.SwaggerObject
                         & Swagger.properties
                             .~ InsOrd.fromList
                                 [ ("public_size", natSchema)
@@ -119,7 +118,7 @@ data KeyPair
 randomKeyPair :: (MonadIO m, Crypto.MonadRandom m) => NominalDiffTime -> m KeyPair
 randomKeyPair expires = do
     time <- liftIO getCurrentTime
-    let expiresTime = addUTCTime expires time -- expires in a day -- just for testing purposes
+    let expiresTime = addUTCTime expires time
     (pub, priv) <- generate 2048 65537
     kid <- randomKeyID
     pure $ KeyPair kid (PublicKey pub) (PrivateKey priv) expiresTime

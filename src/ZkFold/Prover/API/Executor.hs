@@ -12,9 +12,9 @@ import Data.Pool
 import Servant
 import ZkFold.Prover.API.Database
 import ZkFold.Prover.API.Encryption
+import ZkFold.Prover.API.Orphans ()
 import ZkFold.Prover.API.Types.Ctx
 import ZkFold.Prover.API.Types.ProveAlgorithm (ProveAlgorithm (proveAlgorithm))
-
 
 proofExecutor :: forall i o. (ProveAlgorithm i o) => Ctx i -> IO ()
 proofExecutor Ctx{..} = do

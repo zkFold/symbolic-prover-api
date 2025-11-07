@@ -1,14 +1,14 @@
 {-# LANGUAGE AllowAmbiguousTypes #-}
+
 module ZkFold.Prover.API.Handler.General where
 
 import Control.Lens ((.~), (?~))
 import Control.Lens.Lens
 import Control.Monad.IO.Class
 import Data.Aeson
-import Data.OpenApi (OpenApi, URL (..))
-import Data.OpenApi qualified as OpenApi
-import Data.OpenApi.Lens
 import Data.Pool
+import Data.Swagger (Swagger, URL (..))
+import Data.Swagger.Lens
 import GHC.Base (Symbol)
 import Servant
 import Servant.Swagger ()
@@ -31,11 +31,11 @@ type ProofStatusEndpoint o =
         :> ReqBody '[JSON] ProofId
         :> Post '[JSON] (ProofStatus o)
 
-baseOpenApi :: OpenApi -> OpenApi
+baseOpenApi :: Swagger -> Swagger
 baseOpenApi api =
-        api
+    api
         & info
-            . OpenApi.title
+            . title
             .~ "zkFold Prover Server API"
         & info
             . version
@@ -54,9 +54,8 @@ baseOpenApi api =
                         ?~ "zkFold Technical Support"
                )
         & info
-            . OpenApi.description
+            . description
             ?~ "API to interact with zkFold Prover Server"
-        
 
 handleProofStatus :: forall i o. (FromJSON o) => Ctx i -> ProofId -> Handler (ProofStatus o)
 handleProofStatus Ctx{..} pid = liftIO $ withResource ctxConnectionPool $ \conn -> getProofStatus @o conn pid

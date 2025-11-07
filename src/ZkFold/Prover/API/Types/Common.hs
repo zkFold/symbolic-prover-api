@@ -11,7 +11,7 @@ import Control.Monad.Error.Class (MonadError)
 import Control.Monad.IO.Class (MonadIO)
 import Crypto.Random.Types qualified as Crypto
 import Data.HashMap.Strict.InsOrd qualified as InsOrd
-import Data.OpenApi qualified as Swagger
+import Data.Swagger qualified as Swagger
 import Data.Text
 import Servant
 
