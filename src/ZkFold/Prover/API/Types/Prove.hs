@@ -1,11 +1,11 @@
-{-# LANGUAGE UndecidableInstances #-}
 {-# LANGUAGE StandaloneDeriving #-}
+{-# LANGUAGE UndecidableInstances #-}
 
 module ZkFold.Prover.API.Types.Prove (
     ZKProveRequest (..),
     ZKProveResult (..),
     ProofId (..),
-    ProofStatus(..)
+    ProofStatus (..),
 ) where
 
 import Data.Time.Clock (UTCTime)
@@ -16,37 +16,30 @@ import Control.Lens
 import Data.Aeson.Casing
 import Data.Char (isLower)
 import Data.Data
-import Data.OpenApi
-import Data.OpenApi qualified as Swagger
-import Data.OpenApi.Declare qualified as Swagger
+import Data.Swagger qualified as Swagger
+import Data.Swagger.Declare qualified as Swagger
 import Data.Text qualified as T
-import ZkFold.Prover.API.Orphans ()
 import ZkFold.Prover.API.Types.Common (addDescription, addFieldDescription)
 import ZkFold.Prover.API.Types.Encryption (KeyID)
 import ZkFold.Prover.API.Utils
 import ZkFold.Symbolic.Examples.SmartWallet (ByteStringFromHex (..))
 
 data ZKProveRequest
-  = ZKProveRequest
-  { preqServerKeyId ∷ KeyID
-  , preqAesEncryptionKey ∷ ByteStringFromHex
-  , preqEncryptedPayload ∷ ByteStringFromHex
-  }
-  deriving stock (Eq, Generic, Ord, Show)
-  deriving
-    (FromJSON, ToJSON)
-    via CustomJSON '[FieldLabelModifier '[StripPrefix "preq", CamelToSnake]] ZKProveRequest
+    = ZKProveRequest
+    { preqServerKeyId :: KeyID
+    , preqAesEncryptionKey :: ByteStringFromHex
+    , preqEncryptedPayload :: ByteStringFromHex
+    }
+    deriving stock (Eq, Generic, Ord, Show)
+    deriving
+        (FromJSON, ToJSON)
+        via CustomJSON '[FieldLabelModifier '[StripPrefix "preq", CamelToSnake]] ZKProveRequest
 
 data ProofStatus o = Completed (ZKProveResult o) | Pending | Failed
-  deriving stock (Generic)
-  deriving anyclass (FromJSON, ToJSON)
+    deriving stock (Generic)
+    deriving anyclass (FromJSON, ToJSON)
 
 deriving instance (Show (ZKProveResult o)) => Show (ProofStatus o)
-
-instance (ToSchema o) => Swagger.ToSchema (ProofStatus o) where
-  declareNamedSchema =
-    Swagger.genericDeclareNamedSchema Swagger.defaultSchemaOptions
-      & addSwaggerDescription "Status of a submitted proof"
 
 instance Swagger.ToSchema ZKProveRequest where
     declareNamedSchema _ = do
@@ -78,7 +71,7 @@ instance Swagger.ToSchema ZKProveRequest where
                 , "The Prover server uses combined encryption to secure sensitive information."
                 , "Payload is encrypted with a symmetric cipher, while its encryption key is itself encrypted with the Server's 2048-bit RSA key."
                 , "⋅"
-                , "The JSON from above must be encrypted with AES-256-CBC and PKCS#7 padding, making the \"encrypted_payload\" field."
+                , "The JSON from above must be encrypted with AES-256-CBC and Optimal Asymmetric Encryption Padding(OAEP), making the \"encrypted_payload\" field."
                 , "AES-256 encryption key must itself be encrypted with one of the Prover server's public keys, making the \"aes_encryption_key\" field."
                 , "The key ID of the Server's RSA key used to encrypt the AES key makes the \"server_key_id\" field."
                 , "⋅"
@@ -100,12 +93,12 @@ data ZKProveResult o
     { presBytes :: o
     , presTimestamp :: UTCTime
     }
-  deriving stock (Generic, Show)
-  deriving
-    (FromJSON, ToJSON)
-    via CustomJSON '[FieldLabelModifier '[StripPrefix "pres", CamelToSnake]] (ZKProveResult o)
+    deriving stock (Generic, Show)
+    deriving
+        (FromJSON, ToJSON)
+        via CustomJSON '[FieldLabelModifier '[StripPrefix "pres", CamelToSnake]] (ZKProveResult o)
 
-instance forall o. (Typeable o, ToSchema o) => ToSchema (ZKProveResult o) where
+instance forall o. (Swagger.ToSchema o) => Swagger.ToSchema (ZKProveResult o) where
     declareNamedSchema =
         Swagger.genericDeclareNamedSchema
             Swagger.defaultSchemaOptions{Swagger.fieldLabelModifier = snakeCase . dropWhile isLower}
@@ -115,7 +108,7 @@ newtype ProofId = ProofId UUID
     deriving stock (Eq, Generic, Ord, Show)
     deriving newtype (FromJSON, ToJSON)
 
-instance ToSchema ProofId where
+instance Swagger.ToSchema ProofId where
     declareNamedSchema =
         Swagger.genericDeclareNamedSchema Swagger.defaultSchemaOptions
             & addSwaggerDescription "ID of a submitted prove request"

@@ -8,16 +8,15 @@ import Control.Lens.Lens
 import Control.Monad.IO.Class
 import Data.Aeson
 import Data.Data
-import Data.OpenApi (OpenApi, applyTagsFor)
-import Data.OpenApi qualified as OpenApi
 import Data.Pool
+import Data.Swagger (HasDescription (description), Swagger, applyTagsFor)
 import Data.UUID.V4 (nextRandom)
 import Servant
-import Servant.OpenApi
-import Servant.Swagger ()
+import Servant.Swagger
 import Servant.Swagger.UI
 import ZkFold.Prover.API.Database
 import ZkFold.Prover.API.Handler.General (MainAPI, ProofStatusEndpoint, V0, baseOpenApi, handleProofStatus)
+import ZkFold.Prover.API.Orphans ()
 import ZkFold.Prover.API.Types
 import ZkFold.Prover.API.Types.Encryption ()
 import ZkFold.Prover.API.Types.ProveAlgorithm (ProveAlgorithm)
@@ -33,12 +32,12 @@ type ProverUnencryptedEndpoint i o =
     ProofStatusEndpoint o
         :<|> ProveUnencryptedEndpoint i
 
-openApi :: forall i o. (ProveAlgorithm i o) => OpenApi
+openApi :: forall i o. (ProveAlgorithm i o) => Swagger
 openApi =
-    baseOpenApi (toOpenApi proxy)
+    baseOpenApi (toSwagger proxy)
         & applyTagsFor
             (subOperations proxy proxy)
-            ["ZK prover endpoints" & OpenApi.description ?~ "Submit a proof and get proof status."]
+            ["ZK prover endpoints" & description ?~ "Submit a proof and get proof status."]
   where
     proxy = Proxy :: Proxy (V0 :> ProverUnencryptedEndpoint i o)
 

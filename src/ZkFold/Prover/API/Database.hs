@@ -6,48 +6,28 @@ module ZkFold.Prover.API.Database where
 
 import Control.Applicative
 
-import Control.Lens
 import Control.Monad
 import Data.Aeson
 import Data.ByteString (ByteString)
 import Data.Int
 import Data.Maybe
-import Data.OpenApi
 import Data.Time (UTCTime)
 import Data.UUID
 import Database.SQLite.Simple
 import Database.SQLite.Simple.FromField (FromField (fromField), fieldData, returnError)
 import Database.SQLite.Simple.ToField (ToField (toField))
 import GHC.Generics
-import System.IO.Unsafe (unsafePerformIO)
 import ZkFold.Prover.API.Types.Prove hiding (ProofStatus (..))
 import ZkFold.Prover.API.Types.Prove qualified as P
-import ZkFold.Prover.API.Utils
+import ZkFold.Prover.API.Types.Status
 import Prelude hiding (id)
 
-data Status = Pending | Completed | Failed
-    deriving stock (Generic, Show)
-    deriving anyclass (ToJSON, FromJSON)
-
-instance FromField Status where
-    fromField f = unsafePerformIO $ do
-        print $ fieldData f
-        pure $ case fieldData f of
-            SQLText text -> case text of
-                "PENDING" -> pure Pending
-                "COMPLETED" -> pure Completed
-                "FAILED" -> pure Failed
-                status -> returnError ConversionFailed f ("Unexpected status: " <> show status)
-            sqlData -> returnError ConversionFailed f ("Unexpected data in status: " <> show sqlData)
-
 instance FromField UUID where
-    fromField f = unsafePerformIO $ do
-        print $ fieldData f
-        pure $ case fieldData f of
-            SQLText uuidText -> case fromText uuidText of
-                Just uuid -> pure uuid
-                Nothing -> returnError ConversionFailed f ("Incorrect uuid format: " <> show uuidText)
-            sqlData -> returnError ConversionFailed f ("Unexpected data in uuid field: " <> show sqlData)
+    fromField f = case fieldData f of
+        SQLText uuidText -> case fromText uuidText of
+            Just uuid -> pure uuid
+            Nothing -> returnError ConversionFailed f ("Incorrect uuid format: " <> show uuidText)
+        sqlData -> returnError ConversionFailed f ("Unexpected data in uuid field: " <> show sqlData)
 
 instance ToField UUID where
     toField = SQLText . toText
@@ -61,11 +41,6 @@ data Record = Record
     , proofTime :: Maybe UTCTime
     }
     deriving (Generic, Show)
-
-instance ToSchema Status where
-    declareNamedSchema =
-        genericDeclareNamedSchema defaultSchemaOptions
-            & addSwaggerDescription "Status of a submitted proof"
 
 instance FromRow Record where
     fromRow = do

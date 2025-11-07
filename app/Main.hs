@@ -5,7 +5,7 @@
 module Main where
 
 import Data.ByteString (ByteString)
-import Data.OpenApi (NamedSchema (..), ToSchema (..))
+import Data.Swagger (NamedSchema (..), ToSchema (..))
 import GHC.Generics
 import Options.Applicative
 import ZkFold.Algebra.Class hiding ((/))
