@@ -1,15 +1,14 @@
 module ZkFold.Prover.API.Types.Status where
 
 import Data.Aeson
+import Data.Function ((&))
+import Data.Swagger
 import Database.SQLite.Simple
 import Database.SQLite.Simple.FromField
 import GHC.Generics
-import Data.Swagger
 import ZkFold.Prover.API.Utils
-import Data.Function ((&))
 
-
-data Status = Pending | Completed | Failed
+data Status = Completed | Pending | Failed
     deriving stock (Generic, Show)
     deriving anyclass (ToJSON, FromJSON)
 
