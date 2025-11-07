@@ -95,7 +95,7 @@ getProofStatus ::
     (FromJSON o) =>
     Connection -> ProofId -> IO (P.ProofStatus o)
 getProofStatus conn (ProofId uuid) = do
-    [(status, mProof, mTime)] <-
+    statuses <-
         query
             conn
             " \
@@ -108,17 +108,23 @@ getProofStatus conn (ProofId uuid) = do
             \     query_uuid = ? \
             \ "
             (Only uuid)
-    let mResult = do
-            proofJson <- mProof
-            time <- mTime
-            proof <- decode proofJson
-            pure $ ZKProveResult proof time
+    let (status, mResult) =
+            case statuses of
+                [] -> (NotFound, Nothing)
+                (status', mProof, mTime) : _ -> (status', res)
+                  where
+                    res = do
+                        proofJson <- mProof
+                        time <- mTime
+                        proof <- decode proofJson
+                        pure $ ZKProveResult proof time
 
     pure $ case (status, mResult) of
+        (NotFound, Nothing) -> P.NotFound
         (Pending, Nothing) -> P.Pending
         (Completed, Just result) -> P.Completed result
         (Failed, _) -> P.Failed
-        _ -> P.Failed
+        _ -> P.NotFound
 
 getRecord :: Connection -> Int -> IO Record
 getRecord conn id = do
