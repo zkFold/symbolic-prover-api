@@ -4,12 +4,12 @@ module ZkFold.Prover.API.Executor where
 
 import Control.Concurrent
 import Control.Concurrent.STM
+import Control.Exception (SomeException, handle)
 import Control.Monad
-import Control.Monad.IO.Class
 import Data.Aeson
 import Data.ByteString
 import Data.Pool
-import Servant
+import Servant (runHandler)
 import ZkFold.Prover.API.Database
 import ZkFold.Prover.API.Encryption
 import ZkFold.Prover.API.Orphans ()
@@ -28,10 +28,17 @@ proofExecutor Ctx{..} = do
         case eWitness of
             Left err -> do
                 putStrLn $ "LOG: Error \'" <> show err <> "\' in decrypting input with id " <> show taskId
-                liftIO $ withResource ctxConnectionPool $ \conn -> do
+
+                withResource ctxConnectionPool $ \conn -> do
                     markAsFailed conn taskId
-            Right w -> do
+            Right w -> handle handler $ do
                 let proof = proveAlgorithm @i @o w
                 let proofBytes = encode proof
-                liftIO $ withResource ctxConnectionPool $ \conn -> do
+
+                withResource ctxConnectionPool $ \conn -> do
                     finishTask conn taskId (toStrict proofBytes)
+              where
+                handler :: SomeException -> IO ()
+                handler (ex :: SomeException) = do
+                    putStrLn $ "LOG: Caught exception in executor thread: " <> show ex
+                    withResource ctxConnectionPool $ \conn -> markAsFailed conn taskId
