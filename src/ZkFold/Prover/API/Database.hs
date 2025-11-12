@@ -84,7 +84,7 @@ addNewProveQuery conn contractId uuid = do
             \         status, \
             \         contract_id \
             \     ) \
-            \ VALUES (?, 'PENDING', ?) \
+            \ VALUES (?, 'QUEUED', ?) \
             \ RETURNING id; \
             \ "
             (uuid, contractId)
@@ -122,6 +122,7 @@ getProofStatus conn (ProofId uuid) = do
     pure $ case (status, mResult) of
         (NotFound, Nothing) -> P.NotFound
         (Pending, Nothing) -> P.Pending
+        (Queued, Nothing) -> P.Queued
         (Completed, Just result) -> P.Completed result
         (Failed, _) -> P.Failed
         _ -> P.NotFound
@@ -146,6 +147,18 @@ getRecord conn id = do
             \ "
             (Only id)
     pure record
+
+markAsPending :: Connection -> Int -> IO ()
+markAsPending conn id = do
+    void $
+        execute
+            conn
+            " \
+            \ UPDATE prove_request_table \
+            \ SET status = 'PENDING' \
+            \ WHERE id = ?; \
+            \ "
+            (Only id)
 
 markAsFailed :: Connection -> Int -> IO ()
 markAsFailed conn id = do

@@ -35,7 +35,7 @@ data ZKProveRequest
         (FromJSON, ToJSON)
         via CustomJSON '[FieldLabelModifier '[StripPrefix "preq", CamelToSnake]] ZKProveRequest
 
-data ProofStatus o = Completed (ZKProveResult o) | Pending | Failed | NotFound
+data ProofStatus o = Completed (ZKProveResult o) | Pending | Queued | Failed | NotFound
     deriving stock (Generic)
     deriving anyclass (FromJSON, ToJSON)
 
