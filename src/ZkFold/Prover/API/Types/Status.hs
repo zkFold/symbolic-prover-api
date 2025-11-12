@@ -8,7 +8,7 @@ import Database.SQLite.Simple.FromField
 import GHC.Generics
 import ZkFold.Prover.API.Utils
 
-data Status = Completed | Pending | Failed | NotFound
+data Status = Completed | Pending | Queued | Failed | NotFound
     deriving stock (Generic, Show)
     deriving anyclass (ToJSON, FromJSON)
 
@@ -23,5 +23,6 @@ instance FromField Status where
             "PENDING" -> pure Pending
             "COMPLETED" -> pure Completed
             "FAILED" -> pure Failed
+            "QUEUED" -> pure Queued
             status -> returnError ConversionFailed f ("Unexpected status: " <> show status)
         sqlData -> returnError ConversionFailed f ("Unexpected data in status: " <> show sqlData)

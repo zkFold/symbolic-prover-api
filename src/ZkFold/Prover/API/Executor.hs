@@ -22,6 +22,7 @@ proofExecutor Ctx{..} = do
     forever $ do
         putStrLn "Waiting for query"
         (taskId, wd) <- atomically $ readTQueue ctxProofQueue
+        withResource ctxConnectionPool $ \conn -> markAsPending conn taskId
         eWitness <- case wd of
             Encrypted zkpr -> runHandler $ decryptInput @i ctxServerKeys zkpr
             Unencrypted w -> pure $ pure w
