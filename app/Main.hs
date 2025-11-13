@@ -22,7 +22,7 @@ import ZkFold.Protocol.Plonkup.Prover (PlonkupProverSecret)
 import ZkFold.Protocol.Plonkup.Utils
 import ZkFold.Protocol.Plonkup.Witness
 import ZkFold.Prover.API.Server
-import ZkFold.Prover.API.Types.Ctx (EncryptionMode (EncryptedMode))
+import ZkFold.Prover.API.Types.Config
 import ZkFold.Prover.API.Types.ProveAlgorithm (ProveAlgorithm (proveAlgorithm))
 import ZkFold.Symbolic.Class
 import ZkFold.Symbolic.Compiler
@@ -30,17 +30,6 @@ import ZkFold.Symbolic.Data.Bool (Bool)
 import ZkFold.Symbolic.Data.FieldElement
 import ZkFold.Symbolic.Data.Vec
 import Prelude hiding (Bool, (==))
-
-portParser :: Parser Int
-portParser =
-    option
-        auto
-        ( long "port"
-            <> help "Port to listen for proof requests"
-            <> showDefault
-            <> value 8083
-            <> metavar "INT"
-        )
 
 type I = (U1 :*: U1) :*: (Par1 :*: U1)
 type G1 = BLS12_381_G1_JacobianPoint
@@ -71,20 +60,20 @@ instance ProveAlgorithm (PlonkupWitnessInput I G1, PlonkupProverSecret G1) (Plon
 
 main :: IO ()
 main = do
-    serverPort <- execParser opts
-    let
-        dbFile = "sqlite-database.db"
-        nWorkers = 3
-        contractId = 1
-        encryptionMode = EncryptedMode
+    serverConfig <- execParser opts
 
-    let serverConfig = ServerConfig{..}
     print @String ("Started with " <> show serverConfig)
     runServer @(Witness (PlonkupExample 16)) @(Proof (PlonkupExample 16)) serverConfig
   where
+    parser =
+        cliParser
+            defaultServerConfig
+                { dbFile = "./sqlite-database.db"
+                , nWorkers = 3
+                }
     opts =
         info
-            (portParser <**> helper)
+            (parser <**> helper)
             ( fullDesc
                 <> progDesc "Smart Wallet prover"
                 <> header "zkFold's Smart Wallet prover server"

@@ -73,6 +73,7 @@ library
     ZkFold.Prover.API.Handler.Encrypted
     ZkFold.Prover.API.Handler.Unencrypted
     ZkFold.Prover.API.Types
+    ZkFold.Prover.API.Types.Config
     ZkFold.Prover.API.Types.Common
     ZkFold.Prover.API.Types.Ctx
     ZkFold.Prover.API.Types.Encryption
@@ -108,6 +109,7 @@ library
     , wai-cors
     , wai-extra
     , symbolic-examples
+    , optparse-applicative
   hs-source-dirs:      src
 
 executable zkfold-prover-api
