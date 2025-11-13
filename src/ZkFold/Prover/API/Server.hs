@@ -29,18 +29,8 @@ import ZkFold.Prover.API.Executor
 import ZkFold.Prover.API.Handler.Encrypted qualified as Encrypted
 import ZkFold.Prover.API.Handler.Unencrypted qualified as Unencrypted
 import ZkFold.Prover.API.Types
+import ZkFold.Prover.API.Types.Config
 import ZkFold.Prover.API.Types.ProveAlgorithm (ProveAlgorithm)
-
-data ServerConfig = ServerConfig
-    { serverPort :: Int
-    , dbFile :: String
-    , nWorkers :: Int
-    , contractId :: Int
-    , encryptionMode :: EncryptionMode
-    , proofLifetimeDays :: Int
-    , keysLifetimeSeconds :: Int
-    }
-    deriving (Eq, Show)
 
 -- Allow all origins and common methods/headers
 simpleCorsResourcePolicy :: CorsResourcePolicy
