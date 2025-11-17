@@ -15,7 +15,7 @@ data ServerConfig = ServerConfig
     , dbFile :: String
     -- ^ Path to SQLite database file (default: ./sqlite.db)
     , nWorkers :: Int
-    -- ^ Number of worker threads (default: 4)
+    -- ^ Number of worker threads (default: 2)
     , proverMode :: ProverMode
     -- ^ Prover mode: Encrypted or Plain (default: Encrypted)
     , proofLifetime :: Int
@@ -33,7 +33,7 @@ configPathParser =
         ( long "config"
             <> help "Path to server configuration yaml file"
             <> showDefault
-            <> value "config.yaml"
+            <> value ""
             <> metavar "PATH"
         )
 
@@ -42,7 +42,7 @@ defaultServerConfig =
     ServerConfig
         { serverPort = 8083
         , dbFile = "./sqlite.db"
-        , nWorkers = 4
+        , nWorkers = 2
         , proverMode = Encrypted
         , proofLifetime = 30
         , keysLifetime = 86400

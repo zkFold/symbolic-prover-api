@@ -231,9 +231,9 @@ getProverStats conn = do
             conn
             " \
             \ SELECT \
-            \   AVG( \
+            \   COALESCE(AVG( \
             \     (JULIANDAY(proof_time) - JULIANDAY(create_time)) * 86400 \
-            \   ) \
+            \   ), 0.0) \
             \ FROM \
             \   prove_request_table \
             \ WHERE \
