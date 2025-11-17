@@ -1,7 +1,13 @@
 module ZkFold.Prover.API.Types.Config where
 
+import Data.Yaml (decodeFileThrow)
+import GHC.Generics
 import Options.Applicative
-import ZkFold.Prover.API.Types.Ctx (EncryptionMode (..))
+import ZkFold.Prover.API.Types.Ctx (ProverMode (..))
+
+import System.Directory (doesFileExist)
+
+import Data.Aeson
 
 data ServerConfig = ServerConfig
     { serverPort :: Int
@@ -10,16 +16,26 @@ data ServerConfig = ServerConfig
     -- ^ Path to SQLite database file (default: ./sqlite.db)
     , nWorkers :: Int
     -- ^ Number of worker threads (default: 4)
-    , contractId :: Int
-    -- ^ Smart contract ID to be used for proving (default: 1)
-    , encryptionMode :: EncryptionMode
-    -- ^ Encryption mode: EncryptedMode or UnencryptedMode (default: EncryptedMode)
+    , proverMode :: ProverMode
+    -- ^ Prover mode: Encrypted or Plain (default: Encrypted)
     , proofLifetime :: Int
     -- ^ Proof lifetime in days (default: 30 days)
     , keysLifetime :: Int
     -- ^ Key lifetime in seconds (default: 24 hours)
     }
-    deriving (Eq, Show)
+    deriving (Eq, Show, Generic)
+    deriving anyclass (ToJSON, FromJSON)
+
+configPathParser :: Parser FilePath
+configPathParser =
+    option
+        str
+        ( long "config"
+            <> help "Path to server configuration yaml file"
+            <> showDefault
+            <> value "config.yaml"
+            <> metavar "PATH"
+        )
 
 defaultServerConfig :: ServerConfig
 defaultServerConfig =
@@ -27,37 +43,36 @@ defaultServerConfig =
         { serverPort = 8083
         , dbFile = "./sqlite.db"
         , nWorkers = 4
-        , contractId = 1
-        , encryptionMode = EncryptedMode
+        , proverMode = Encrypted
         , proofLifetime = 30
         , keysLifetime = 86400
         }
 
-cliParser :: ServerConfig -> Parser ServerConfig
-cliParser ServerConfig{..} =
-    ServerConfig
-        <$> portParser serverPort
-        <*> dbFileParser dbFile
-        <*> nWorkersParser nWorkers
-        <*> contractIdParser contractId
-        <*> modeParser encryptionMode
-        <*> proofLifetimeParser proofLifetime
-        <*> keysLifetimeParser keysLifetime
+cliParser :: ServerConfig -> Parser (FilePath, ServerConfig)
+cliParser ServerConfig{..} = do
+    liftA2 (,) configPathParser $
+        ServerConfig
+            <$> portParser serverPort
+            <*> dbFileParser dbFile
+            <*> nWorkersParser nWorkers
+            <*> modeParser proverMode
+            <*> proofLifetimeParser proofLifetime
+            <*> keysLifetimeParser keysLifetime
   where
-    modeReader :: ReadM EncryptionMode
+    modeReader :: ReadM ProverMode
     modeReader = do
         arg <- str
         case arg of
-            "encrypted" -> return EncryptedMode
-            "unencrypted" -> return UnencryptedMode
+            "encrypted" -> return Encrypted
+            "plain" -> return Plain
             _ -> readerError $ "Invalid value: " ++ arg ++ ". Allowed values: encrypted, unencrypted."
 
-    modeParser :: EncryptionMode -> Parser EncryptionMode
+    modeParser :: ProverMode -> Parser ProverMode
     modeParser d =
         option
             modeReader
             ( long "mode"
-                <> help "Encryption mode: encrypted or decrypted"
+                <> help "Encryption mode: encrypted or plain"
                 <> short 'm'
                 <> showDefault
                 <> value d
@@ -99,17 +114,6 @@ cliParser ServerConfig{..} =
                 <> metavar "N"
             )
 
-    contractIdParser :: Int -> Parser Int
-    contractIdParser d =
-        option
-            auto
-            ( long "contract-id"
-                <> short 'c'
-                <> help "Contract ID"
-                <> showDefault
-                <> value d
-                <> metavar "ID"
-            )
     proofLifetimeParser :: Int -> Parser Int
     proofLifetimeParser d =
         option
@@ -130,4 +134,23 @@ cliParser ServerConfig{..} =
                 <> showDefault
                 <> value d
                 <> metavar "SECONDS"
+            )
+
+parseConfig :: IO ServerConfig
+parseConfig = do
+    (configPath, cliConfig) <- execParser $ opts defaultServerConfig
+    fileExist <- doesFileExist configPath
+    if fileExist
+        then do
+            fileConfig <- decodeFileThrow configPath
+            snd <$> execParser (opts fileConfig)
+        else do
+            pure cliConfig
+  where
+    opts defaultConfig =
+        info
+            (cliParser defaultConfig <**> helper)
+            ( fullDesc
+                <> progDesc "Smart Wallet prover"
+                <> header "zkFold's Smart Wallet prover server"
             )

@@ -1,0 +1,6 @@
+serverPort: 8083
+dbFile: sqlite.db
+nWorkers: 4
+proverMode: encrypted
+proofLifetime: 30
+keysLifetime: 86400

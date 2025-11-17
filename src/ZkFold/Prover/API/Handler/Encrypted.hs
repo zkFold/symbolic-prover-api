@@ -56,8 +56,8 @@ handleProve :: forall i. Ctx i -> ZKProveRequest -> Handler ProofId
 handleProve Ctx{..} zkpr = do
     liftIO $ withResource ctxConnectionPool $ \conn -> do
         uuid <- nextRandom
-        addNewProveQuery conn ctxContractId uuid
-        atomically $ writeTQueue ctxProofQueue (uuid, Encrypted zkpr)
+        addNewProveQuery conn uuid
+        atomically $ writeTQueue ctxProofQueue (uuid, EncryptedWD zkpr)
         pure $ ProofId uuid
 
 handleProverApi :: forall i o. (FromJSON o) => Ctx i -> Servant.Server (V0 :> ProverEncryptedEndpoints i o)

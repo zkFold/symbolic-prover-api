@@ -1,7 +1,7 @@
 module ZkFold.Prover.API.Types.Ctx (
     Ctx (..),
     WitnessData (..),
-    EncryptionMode (..),
+    ProverMode (..),
 ) where
 
 import Control.Concurrent.STM (TQueue, TVar)
@@ -12,21 +12,22 @@ import Data.UUID (UUID)
 import Database.SQLite.Simple
 import ZkFold.Prover.API.Types.Encryption
 import ZkFold.Prover.API.Types.Prove
+import Data.Text (toLower)
 
-data WitnessData w = Encrypted ZKProveRequest | Unencrypted w
+data WitnessData w = EncryptedWD ZKProveRequest | UnencryptedWD w
 
-data EncryptionMode = EncryptedMode | UnencryptedMode
+data ProverMode = Encrypted | Plain
     deriving (Eq, Show)
 
-instance ToJSON EncryptionMode where
-    toJSON EncryptedMode = "encrypted"
-    toJSON UnencryptedMode = "unencrypted"
+instance ToJSON ProverMode where
+    toJSON Encrypted = "encrypted"
+    toJSON Plain = "plain"
 
-instance FromJSON EncryptionMode where
-    parseJSON = withText "EncryptionMode" f
+instance FromJSON ProverMode where
+    parseJSON = withText "ProverMode" (f . toLower)
       where
-        f "encrypted" = pure EncryptedMode
-        f "unencrypted" = pure UnencryptedMode
+        f "encrypted" = pure Encrypted
+        f "plain" = pure Plain
         f _ = fail "Unexpected encryption mode"
 
 -- | Server context: configuration & shared state.
@@ -34,6 +35,5 @@ data Ctx w = Ctx
     { ctxConnectionPool :: Pool Connection
     , ctxServerKeys :: !(TVar [KeyPair])
     , ctxProofQueue :: TQueue (UUID, WitnessData w)
-    , ctxContractId :: Int
-    , ctxEncryptionMode :: EncryptionMode
+    , ctxProverMode :: ProverMode
     }

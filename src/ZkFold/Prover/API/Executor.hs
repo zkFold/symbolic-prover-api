@@ -24,8 +24,8 @@ proofExecutor Ctx{..} = do
         (taskId, wd) <- atomically $ readTQueue ctxProofQueue
         withResource ctxConnectionPool $ \conn -> markAsPending conn taskId
         eWitness <- case wd of
-            Encrypted zkpr -> runHandler $ decryptInput @i ctxServerKeys zkpr
-            Unencrypted w -> pure $ pure w
+            EncryptedWD zkpr -> runHandler $ decryptInput @i ctxServerKeys zkpr
+            UnencryptedWD w -> pure $ pure w
         case eWitness of
             Left err -> do
                 putStrLn $ "LOG: Error \'" <> show err <> "\' in decrypting input with id " <> show taskId

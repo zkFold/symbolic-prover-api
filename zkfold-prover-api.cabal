@@ -112,6 +112,8 @@ library
     , symbolic-examples
     , cron
     , optparse-applicative
+    , directory
+    , yaml
   hs-source-dirs:      src
 
 executable zkfold-prover-api

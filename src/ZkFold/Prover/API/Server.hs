@@ -85,8 +85,7 @@ runServer ServerConfig{..} = do
                 { ctxConnectionPool = pool
                 , ctxServerKeys = keysVar
                 , ctxProofQueue = queue
-                , ctxContractId = contractId
-                , ctxEncryptionMode = encryptionMode
+                , ctxProverMode = proverMode
                 }
 
     _oldProofsDeleterThreadId <- execSchedule $ do
@@ -98,6 +97,6 @@ runServer ServerConfig{..} = do
     run serverPort $
         logStdout $
             corsMiddleware $
-                case ctxEncryptionMode ctx of
-                    EncryptedMode -> serve (Encrypted.mainApi @i @o) $ Encrypted.mainServer @i @o ctx
-                    UnencryptedMode -> serve (Unencrypted.mainApi @i @o) $ Unencrypted.mainServer @i @o ctx
+                case ctxProverMode ctx of
+                    Encrypted -> serve (Encrypted.mainApi @i @o) $ Encrypted.mainServer @i @o ctx
+                    Plain -> serve (Unencrypted.mainApi @i @o) $ Unencrypted.mainServer @i @o ctx

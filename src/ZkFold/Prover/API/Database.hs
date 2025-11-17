@@ -36,7 +36,6 @@ instance ToField UUID where
 data Record = Record
     { queryUUID :: UUID
     , status :: Status
-    , contractId :: Int
     , createTime :: UTCTime
     , proofBytes :: Maybe ByteString
     , proofTime :: Maybe UTCTime
@@ -47,7 +46,6 @@ instance FromRow Record where
     fromRow = do
         queryUUID <- field
         status <- field
-        contractId <- field
         createTime <- field
         proofBytes <- field
         proofTime <- field
@@ -59,7 +57,6 @@ createQueryTable =
     \ CREATE TABLE IF NOT EXISTS prove_request_table ( \
     \     query_uuid varchar(36) PRIMARY KEY NOT NULL, \
     \     status varchar(16) NOT NULL, \
-    \     contract_id INT NOT NULL, \
     \     create_time TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP, \
     \     proof_bytes BLOB, \
     \     proof_time TEXT \
@@ -70,8 +67,8 @@ initDatabase :: Connection -> IO ()
 initDatabase conn = do
     void $ execute_ conn createQueryTable
 
-addNewProveQuery :: Connection -> Int -> UUID -> IO ()
-addNewProveQuery conn contractId uuid = do
+addNewProveQuery :: Connection -> UUID -> IO ()
+addNewProveQuery conn uuid = do
     void $
         execute
             conn
@@ -79,12 +76,11 @@ addNewProveQuery conn contractId uuid = do
             \ INSERT INTO \
             \     prove_request_table ( \
             \         query_uuid, \
-            \         status, \
-            \         contract_id \
+            \         status \
             \     ) \
-            \ VALUES (?, 'QUEUED', ?) \
+            \ VALUES (?, 'QUEUED') \
             \ "
-            (uuid, contractId)
+            (Only uuid)
 
 getProofStatus ::
     forall o.
@@ -132,7 +128,6 @@ getRecord conn uuid = do
             \ SELECT \
             \     query_uuid, \
             \     status, \
-            \     contract_id, \
             \     create_time, \
             \     proof_bytes, \
             \     proof_time \
