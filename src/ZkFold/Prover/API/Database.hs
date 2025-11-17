@@ -19,6 +19,7 @@ import Database.SQLite.Simple.ToField (ToField (toField))
 import GHC.Generics
 import ZkFold.Prover.API.Types.Prove hiding (ProofStatus (..))
 import ZkFold.Prover.API.Types.Prove qualified as P
+import ZkFold.Prover.API.Types.Stats (ProverStats (..))
 import ZkFold.Prover.API.Types.Status
 import Prelude hiding (id)
 
@@ -82,7 +83,6 @@ addNewProveQuery conn contractId uuid = do
             \         contract_id \
             \     ) \
             \ VALUES (?, 'QUEUED', ?) \
-            \ RETURNING id; \
             \ "
             (uuid, contractId)
 
@@ -151,7 +151,7 @@ markAsPending conn uuid = do
             " \
             \ UPDATE prove_request_table \
             \ SET status = 'PENDING' \
-            \ WHERE id = ?; \
+            \ WHERE query_uuid = ?; \
             \ "
             (Only uuid)
 
@@ -195,3 +195,55 @@ deleteOldProofs conn days = do
             \ WHERE julianday('now') - julianday(create_time) >= ? \
             \ "
             (Only days)
+
+getProverStats :: Connection -> IO ProverStats
+getProverStats conn = do
+    [Only psTotalValidProofs] <-
+        query_
+            conn
+            " \
+            \ SELECT COUNT(*) \
+            \ FROM prove_request_table \
+            \ WHERE create_time >= datetime('now', '-1 day'); \
+            \ "
+
+    [Only psLongestQueueSize] <-
+        query_
+            conn
+            " \
+            \ SELECT \
+            \   COALESCE(MAX(QueueLengthAtCreateTime), 0)\
+            \ FROM \
+            \   ( \
+            \     SELECT \
+            \       t1.create_time, \
+            \       ( \
+            \         SELECT  COUNT(*) \
+            \         FROM  prove_request_table AS t2 \
+            \         WHERE \
+            \           (t2.create_time <= t1.create_time) AND \
+            \           (( t2.proof_time > t1.create_time) OR (t2.proof_time IS NULL)) \
+            \       )  AS QueueLengthAtCreateTime\
+            \     FROM \
+            \       prove_request_table  AS t1 \
+            \     WHERE \
+            \       t1.create_time >= datetime('now', '-1 day') \
+            \   ) \
+            \ "
+
+    [Only psAverageProofTimeSeconds] <-
+        query_
+            conn
+            " \
+            \ SELECT \
+            \   AVG( \
+            \     (JULIANDAY(proof_time) - JULIANDAY(create_time)) * 86400 \
+            \   ) \
+            \ FROM \
+            \   prove_request_table \
+            \ WHERE \
+            \   proof_time IS NOT NULL \
+            \   AND create_time >= datetime('now', '-1 day'); \
+            \ "
+
+    pure $ ProverStats{..}

@@ -70,7 +70,7 @@ runServer ::
     ) =>
     ServerConfig -> IO ()
 runServer ServerConfig{..} = do
-    let keyLifetime = secondsToNominalDiffTime $ toEnum $ keysLifetimeSeconds * (10 ^ (12 :: Int))
+    let keyLifetime = secondsToNominalDiffTime $ toEnum $ keysLifetime * (10 ^ (12 :: Int))
     oldKey <- randomKeyPair (keyLifetime / 2)
     newKey <- randomKeyPair keyLifetime
     keysVar <- newTVarIO [oldKey, newKey]
@@ -90,7 +90,7 @@ runServer ServerConfig{..} = do
                 }
 
     _oldProofsDeleterThreadId <- execSchedule $ do
-        addJob (oldProofDeleter ctx proofLifetimeDays) "0 0 * * *"
+        addJob (oldProofDeleter ctx proofLifetime) "0 0 * * *"
     _keyUpdaterThreadId <- forkIO $ keyUpdater ctx keyLifetime
 
     replicateM_ nWorkers $ forkIO (proofExecutor @i @o ctx)

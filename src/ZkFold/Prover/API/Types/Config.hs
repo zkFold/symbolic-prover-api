@@ -5,12 +5,19 @@ import ZkFold.Prover.API.Types.Ctx (EncryptionMode (..))
 
 data ServerConfig = ServerConfig
     { serverPort :: Int
+    -- ^ Server port (default: 8083)
     , dbFile :: String
+    -- ^ Path to SQLite database file (default: ./sqlite.db)
     , nWorkers :: Int
+    -- ^ Number of worker threads (default: 4)
     , contractId :: Int
+    -- ^ Smart contract ID to be used for proving (default: 1)
     , encryptionMode :: EncryptionMode
-    , proofLifetimeDays :: Int
-    , keysLifetimeSeconds :: Int
+    -- ^ Encryption mode: EncryptedMode or UnencryptedMode (default: EncryptedMode)
+    , proofLifetime :: Int
+    -- ^ Proof lifetime in days (default: 30 days)
+    , keysLifetime :: Int
+    -- ^ Key lifetime in seconds (default: 24 hours)
     }
     deriving (Eq, Show)
 
@@ -22,8 +29,8 @@ defaultServerConfig =
         , nWorkers = 4
         , contractId = 1
         , encryptionMode = EncryptedMode
-        , proofLifetimeDays = 30
-        , keysLifetimeSeconds = 86400
+        , proofLifetime = 30
+        , keysLifetime = 86400
         }
 
 cliParser :: ServerConfig -> Parser ServerConfig
@@ -34,8 +41,8 @@ cliParser ServerConfig{..} =
         <*> nWorkersParser nWorkers
         <*> contractIdParser contractId
         <*> modeParser encryptionMode
-        <*> proofLifetimeParser proofLifetimeDays
-        <*> keysLifetimeParser keysLifetimeSeconds
+        <*> proofLifetimeParser proofLifetime
+        <*> keysLifetimeParser keysLifetime
   where
     modeReader :: ReadM EncryptionMode
     modeReader = do
@@ -103,7 +110,6 @@ cliParser ServerConfig{..} =
                 <> value d
                 <> metavar "ID"
             )
-
     proofLifetimeParser :: Int -> Parser Int
     proofLifetimeParser d =
         option

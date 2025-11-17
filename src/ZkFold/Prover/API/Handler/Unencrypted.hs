@@ -15,7 +15,7 @@ import Servant
 import Servant.Swagger
 import Servant.Swagger.UI
 import ZkFold.Prover.API.Database
-import ZkFold.Prover.API.Handler.General (MainAPI, ProofStatusEndpoint, V0, baseOpenApi, handleProofStatus)
+import ZkFold.Prover.API.Handler.General (MainAPI, ProofStatusEndpoint, StatsEndpoint, V0, baseOpenApi, handleProofStatus, handleStats)
 import ZkFold.Prover.API.Orphans ()
 import ZkFold.Prover.API.Types
 import ZkFold.Prover.API.Types.Encryption ()
@@ -31,6 +31,7 @@ type ProveUnencryptedEndpoint i =
 type ProverUnencryptedEndpoint i o =
     ProofStatusEndpoint o
         :<|> ProveUnencryptedEndpoint i
+        :<|> StatsEndpoint
 
 openApi :: forall i o. (ProveAlgorithm i o) => Swagger
 openApi =
@@ -53,6 +54,7 @@ handleProverApi :: forall i o. (FromJSON o) => Ctx i -> Servant.Server (V0 :> Pr
 handleProverApi ctx =
     handleProofStatus ctx
         :<|> handleProve ctx
+        :<|> handleStats ctx
 
 mainApi :: forall i o. Proxy (MainAPI (V0 :> ProverUnencryptedEndpoint i o))
 mainApi = Proxy

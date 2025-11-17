@@ -80,6 +80,7 @@ library
     ZkFold.Prover.API.Types.Errors
     ZkFold.Prover.API.Types.Prove
     ZkFold.Prover.API.Types.ProveAlgorithm
+    ZkFold.Prover.API.Types.Stats
     ZkFold.Prover.API.Utils
     ZkFold.Prover.API.Database
   other-modules:
