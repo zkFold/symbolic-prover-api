@@ -69,49 +69,49 @@ library
     ZkFold.Prover.API.Encryption
     ZkFold.Prover.API.Executor
     ZkFold.Prover.API.Orphans
+    ZkFold.Prover.API.Handler.General
+    ZkFold.Prover.API.Handler.Encrypted
+    ZkFold.Prover.API.Handler.Unencrypted
     ZkFold.Prover.API.Types
+    ZkFold.Prover.API.Types.Config
     ZkFold.Prover.API.Types.Common
     ZkFold.Prover.API.Types.Ctx
     ZkFold.Prover.API.Types.Encryption
     ZkFold.Prover.API.Types.Errors
     ZkFold.Prover.API.Types.Prove
     ZkFold.Prover.API.Types.ProveAlgorithm
-    ZkFold.Prover.API.Handler
     ZkFold.Prover.API.Utils
     ZkFold.Prover.API.Database
+  other-modules:
+    ZkFold.Prover.API.Types.Status
   build-depends:       
       base >=4.18.1.0 && <5
     , cryptonite ^>=0.30
+    , directory
     , servant-server
     , servant-swagger
     , servant-swagger-ui
     , aeson
+    , aeson-casing
+    , insert-ordered-containers
     , bytestring
     , text
     , lens
     , warp
-    , aeson
-    , bytestring
-    , cryptonite
     , deriving-aeson
-    , lens
     , mtl
     , stm
-    , servant-server
-    , servant-swagger-ui
-    , servant-openapi3
-    , bytestring
-    , openapi3
-    , servant-swagger
+    , swagger2
     , sqlite-simple
     , resource-pool
-    , text
     , time
     , uuid
     , wai
     , wai-cors
     , wai-extra
-    , warp
+    , symbolic-examples
+    , optparse-applicative
+    , yaml
   hs-source-dirs:      src
 
 executable zkfold-prover-api
@@ -122,6 +122,5 @@ executable zkfold-prover-api
                     , optparse-applicative
                     , bytestring
                     , symbolic-base
-                    , openapi3
-
+                    , swagger2
     hs-source-dirs:   app

@@ -13,13 +13,13 @@ import Crypto.Cipher.Types (BlockCipher (..), Cipher (..), makeIV)
 import Crypto.Error (CryptoFailable (..))
 import Data.Aeson (FromJSON, decode)
 import Data.ByteString qualified as BS
-import Data.ByteString.Char8 (pack)
 import Data.Coerce (coerce)
 import Data.Text qualified as T
 import ZkFold.Prover.API.Types.Common
 import ZkFold.Prover.API.Types.Encryption
 import ZkFold.Prover.API.Types.Errors
 import ZkFold.Prover.API.Types.Prove
+import ZkFold.Symbolic.Examples.SmartWallet (ByteStringFromHex (..))
 
 -- TODO: Create a proper key storage/initialisation, implement key rotation, etc
 --
@@ -48,19 +48,19 @@ stripPKCS7 bs = do
 decryptInput :: forall w m. (FromJSON w, ProveRequestMonad m) => TVar [KeyPair] -> ZKProveRequest -> m w
 decryptInput keysVar ZKProveRequest{..} = do
     serverKeys <- getServerKeys keysVar
-    let matchingKeys = filter ((== preqKeyId) . kpId) serverKeys
-    when (null matchingKeys) $ throw (ZKPEKeyError (ZKInvalidKeyID $ keyIdToText preqKeyId))
+    let matchingKeys = filter ((== preqServerKeyId) . kpId) serverKeys
+    when (null matchingKeys) $ throw (ZKPEKeyError (ZKInvalidKeyID $ keyIdToText preqServerKeyId))
     let KeyPair{..} = case matchingKeys of
             [k] -> k
             _ -> error "impossible"
 
     -- First, decode the symmetric AES key
-    aesKey <- decrypt (Just "AES key") kpPrivate (pack $ coerce preqAES)
+    aesKey <- decrypt (Just "AES key") kpPrivate (coerce preqAesEncryptionKey)
     unless (BS.length aesKey == 32) $
         throw (ZKPEDecryptionError $ ZKDecryptionFailed "AES key is not 32-byte long")
 
     -- Then, decode the payload itself
-    let (ivBytes, ciphertext) = BS.splitAt 16 (pack $ coerce preqPayload)
+    let (ivBytes, ciphertext) = BS.splitAt 16 (coerce preqEncryptedPayload)
     iv <- case makeIV ivBytes of
         Nothing -> throw (ZKPEDecryptionError $ ZKDecryptionFailed "Invalid IV")
         Just iv' -> pure iv'

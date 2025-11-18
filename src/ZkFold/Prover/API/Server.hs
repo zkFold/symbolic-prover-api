@@ -18,24 +18,18 @@ import Data.Time.Clock (
     nominalDiffTimeToSeconds,
  )
 import Database.SQLite.Simple
-import ZkFold.Prover.API.Database (initDatabase)
 import Network.Wai (Middleware)
 import Network.Wai.Handler.Warp (run)
 import Network.Wai.Middleware.Cors (CorsResourcePolicy (..), cors, corsRequestHeaders)
 import Network.Wai.Middleware.RequestLogger (logStdout)
 import Servant
+import ZkFold.Prover.API.Database (initDatabase)
 import ZkFold.Prover.API.Executor
-import ZkFold.Prover.API.Handler
+import ZkFold.Prover.API.Handler.Encrypted qualified as Encrypted
+import ZkFold.Prover.API.Handler.Unencrypted qualified as Unencrypted
 import ZkFold.Prover.API.Types
+import ZkFold.Prover.API.Types.Config
 import ZkFold.Prover.API.Types.ProveAlgorithm (ProveAlgorithm)
-
-data ServerConfig = ServerConfig
-    { serverPort :: Int
-    , dbFile :: String
-    , nWorkers :: Int
-    , contractId :: Int
-    }
-    deriving (Eq, Show)
 
 -- Allow all origins and common methods/headers
 simpleCorsResourcePolicy :: CorsResourcePolicy
@@ -85,10 +79,16 @@ runServer ServerConfig{..} = do
                 { ctxConnectionPool = pool
                 , ctxServerKeys = keysVar
                 , ctxProofQueue = queue
-                , ctxContractId = contractId
+                , ctxProverMode = proverMode
                 }
 
     _keyUpdaterThreadId <- forkIO $ keyUpdater ctx period
 
     replicateM_ nWorkers $ forkIO (proofExecutor @i @o ctx)
-    run serverPort $ logStdout $ corsMiddleware $ serve (mainApi @i @o) $ mainServer @i @o ctx
+
+    run serverPort $
+        logStdout $
+            corsMiddleware $
+                case ctxProverMode ctx of
+                    Encrypted -> serve (Encrypted.mainApi @i @o) $ Encrypted.mainServer @i @o ctx
+                    Plain -> serve (Unencrypted.mainApi @i @o) $ Unencrypted.mainServer @i @o ctx

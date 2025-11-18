@@ -6,74 +6,47 @@ module ZkFold.Prover.API.Database where
 
 import Control.Applicative
 
-import Control.Lens
 import Control.Monad
 import Data.Aeson
 import Data.ByteString (ByteString)
 import Data.Int
 import Data.Maybe
-import Data.OpenApi
+import Data.Time (UTCTime)
 import Data.UUID
 import Database.SQLite.Simple
-import Database.SQLite.Simple.FromField (FromField (fromField), returnError, fieldData)
-import GHC.Generics
-import ZkFold.Prover.API.Types.Prove
-import ZkFold.Prover.API.Utils
-import Prelude hiding (id)
-import Data.Time (UTCTime)
-import System.IO.Unsafe (unsafePerformIO)
+import Database.SQLite.Simple.FromField (FromField (fromField), fieldData, returnError)
 import Database.SQLite.Simple.ToField (ToField (toField))
-
-data Status = Pending | Completed | Failed
-    deriving stock (Generic, Show)
-    deriving anyclass (ToJSON, FromJSON)
-
-instance FromField Status where
-    fromField f = unsafePerformIO $ do
-        print $ fieldData f
-        pure $ case fieldData f of
-            SQLText text -> case text of
-                "PENDING" -> pure Pending
-                "COMPLETED" -> pure Completed
-                "FAILED" -> pure Failed
-                status -> returnError ConversionFailed f ("Unexpected status: " <> show status)
-            sqlData -> returnError ConversionFailed f ("Unexpected data in status: " <> show sqlData)
+import GHC.Generics
+import ZkFold.Prover.API.Types.Prove hiding (ProofStatus (..))
+import ZkFold.Prover.API.Types.Prove qualified as P
+import ZkFold.Prover.API.Types.Status
+import Prelude hiding (id)
 
 instance FromField UUID where
-    fromField f = unsafePerformIO $ do
-        print $ fieldData f
-        pure $ case fieldData f of
-            SQLText uuidText -> case fromText uuidText of
-                Just uuid -> pure uuid
-                Nothing -> returnError ConversionFailed f ("Incorrect uuid format: " <> show uuidText)
-            sqlData -> returnError ConversionFailed f ("Unexpected data in uuid field: " <> show sqlData)
+    fromField f = case fieldData f of
+        SQLText uuidText -> case fromText uuidText of
+            Just uuid -> pure uuid
+            Nothing -> returnError ConversionFailed f ("Incorrect uuid format: " <> show uuidText)
+        sqlData -> returnError ConversionFailed f ("Unexpected data in uuid field: " <> show sqlData)
 
 instance ToField UUID where
     toField = SQLText . toText
-
 
 data Record = Record
     { id :: Int
     , queryUUID :: UUID
     , status :: Status
-    , contractId :: Int
     , createTime :: UTCTime
     , proofBytes :: Maybe ByteString
     , proofTime :: Maybe UTCTime
     }
     deriving (Generic, Show)
 
-instance ToSchema Status where
-    declareNamedSchema =
-        genericDeclareNamedSchema defaultSchemaOptions
-            & addSwaggerDescription "Status of a submitted proof"
-
 instance FromRow Record where
     fromRow = do
         id <- field
         queryUUID <- field
         status <- field
-        contractId <- field
         createTime <- field
         proofBytes <- field
         proofTime <- field
@@ -86,7 +59,6 @@ createQueryTable =
     \     id INTEGER PRIMARY KEY AUTOINCREMENT, \
     \     query_uuid varchar(36) NOT NULL, \
     \     status varchar(16) NOT NULL, \
-    \     contract_id INT NOT NULL, \
     \     create_time TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP, \
     \     proof_bytes BLOB, \
     \     proof_time TEXT \
@@ -97,8 +69,8 @@ initDatabase :: Connection -> IO ()
 initDatabase conn = do
     void $ execute_ conn createQueryTable
 
-addNewProveQuery :: Connection -> Int -> UUID -> IO Int
-addNewProveQuery conn contractId uuid = do
+addNewProveQuery :: Connection -> UUID -> IO Int
+addNewProveQuery conn uuid = do
     [Only result] <-
         query
             conn
@@ -106,21 +78,20 @@ addNewProveQuery conn contractId uuid = do
             \ INSERT INTO \
             \     prove_request_table ( \
             \         query_uuid, \
-            \         status, \
-            \         contract_id \
+            \         status \
             \     ) \
-            \ VALUES (?, 'PENDING', ?) \
+            \ VALUES (?, 'QUEUED') \
             \ RETURNING id; \
             \ "
-            (uuid, contractId)
+            (Only uuid)
     pure result
 
 getProofStatus ::
     forall o.
     (FromJSON o) =>
-    Connection -> ProofId -> IO (Status, Maybe (ZKProveResult o))
+    Connection -> ProofId -> IO (P.ProofStatus o)
 getProofStatus conn (ProofId uuid) = do
-    [(status, mProof, mTime)] <-
+    statuses <-
         query
             conn
             " \
@@ -133,15 +104,24 @@ getProofStatus conn (ProofId uuid) = do
             \     query_uuid = ? \
             \ "
             (Only uuid)
+    let (status, mResult) =
+            case statuses of
+                [] -> (NotFound, Nothing)
+                (status', mProof, mTime) : _ -> (status', res)
+                  where
+                    res = do
+                        proofJson <- mProof
+                        time <- mTime
+                        proof <- decode proofJson
+                        pure $ ZKProveResult proof time
 
-    pure
-        ( status
-        , do
-            proofJson <- mProof
-            time <- mTime
-            proof <- decode proofJson
-            pure $ ZKProveResult proof time
-        )
+    pure $ case (status, mResult) of
+        (NotFound, Nothing) -> P.NotFound
+        (Pending, Nothing) -> P.Pending
+        (Queued, Nothing) -> P.Queued
+        (Completed, Just result) -> P.Completed result
+        (Failed, _) -> P.Failed
+        _ -> P.NotFound
 
 getRecord :: Connection -> Int -> IO Record
 getRecord conn id = do
@@ -153,7 +133,6 @@ getRecord conn id = do
             \     id, \
             \     query_uuid, \
             \     status, \
-            \     contract_id, \
             \     create_time, \
             \     proof_bytes, \
             \     proof_time \
@@ -163,6 +142,18 @@ getRecord conn id = do
             \ "
             (Only id)
     pure record
+
+markAsPending :: Connection -> Int -> IO ()
+markAsPending conn id = do
+    void $
+        execute
+            conn
+            " \
+            \ UPDATE prove_request_table \
+            \ SET status = 'PENDING' \
+            \ WHERE id = ?; \
+            \ "
+            (Only id)
 
 markAsFailed :: Connection -> Int -> IO ()
 markAsFailed conn id = do
