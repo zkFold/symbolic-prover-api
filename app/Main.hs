@@ -60,21 +60,7 @@ instance ProveAlgorithm (PlonkupWitnessInput I G1, PlonkupProverSecret G1) (Plon
 
 main :: IO ()
 main = do
-    serverConfig <- execParser opts
+    serverConfig <- parseConfig
 
     print @String ("Started with " <> show serverConfig)
     runServer @(Witness (PlonkupExample 16)) @(Proof (PlonkupExample 16)) serverConfig
-  where
-    parser =
-        cliParser
-            defaultServerConfig
-                { dbFile = "./sqlite-database.db"
-                , nWorkers = 3
-                }
-    opts =
-        info
-            (parser <**> helper)
-            ( fullDesc
-                <> progDesc "Smart Wallet prover"
-                <> header "zkFold's Smart Wallet prover server"
-            )

@@ -36,7 +36,6 @@ data Record = Record
     { id :: Int
     , queryUUID :: UUID
     , status :: Status
-    , contractId :: Int
     , createTime :: UTCTime
     , proofBytes :: Maybe ByteString
     , proofTime :: Maybe UTCTime
@@ -48,7 +47,6 @@ instance FromRow Record where
         id <- field
         queryUUID <- field
         status <- field
-        contractId <- field
         createTime <- field
         proofBytes <- field
         proofTime <- field
@@ -61,7 +59,6 @@ createQueryTable =
     \     id INTEGER PRIMARY KEY AUTOINCREMENT, \
     \     query_uuid varchar(36) NOT NULL, \
     \     status varchar(16) NOT NULL, \
-    \     contract_id INT NOT NULL, \
     \     create_time TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP, \
     \     proof_bytes BLOB, \
     \     proof_time TEXT \
@@ -72,8 +69,8 @@ initDatabase :: Connection -> IO ()
 initDatabase conn = do
     void $ execute_ conn createQueryTable
 
-addNewProveQuery :: Connection -> Int -> UUID -> IO Int
-addNewProveQuery conn contractId uuid = do
+addNewProveQuery :: Connection -> UUID -> IO Int
+addNewProveQuery conn uuid = do
     [Only result] <-
         query
             conn
@@ -81,13 +78,12 @@ addNewProveQuery conn contractId uuid = do
             \ INSERT INTO \
             \     prove_request_table ( \
             \         query_uuid, \
-            \         status, \
-            \         contract_id \
+            \         status \
             \     ) \
-            \ VALUES (?, 'QUEUED', ?) \
+            \ VALUES (?, 'QUEUED') \
             \ RETURNING id; \
             \ "
-            (uuid, contractId)
+            (Only uuid)
     pure result
 
 getProofStatus ::
@@ -137,7 +133,6 @@ getRecord conn id = do
             \     id, \
             \     query_uuid, \
             \     status, \
-            \     contract_id, \
             \     create_time, \
             \     proof_bytes, \
             \     proof_time \

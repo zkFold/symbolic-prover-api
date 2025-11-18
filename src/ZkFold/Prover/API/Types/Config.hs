@@ -1,16 +1,31 @@
 module ZkFold.Prover.API.Types.Config where
 
 import Options.Applicative
-import ZkFold.Prover.API.Types.Ctx (EncryptionMode (..))
+import ZkFold.Prover.API.Types.Ctx (ProverMode (..))
+import GHC.Generics (Generic)
+import Data.Aeson (ToJSON, FromJSON)
+import System.Directory (doesFileExist)
+import Data.Yaml (decodeFileThrow)
 
 data ServerConfig = ServerConfig
     { serverPort :: Int
     , dbFile :: String
     , nWorkers :: Int
-    , contractId :: Int
-    , encryptionMode :: EncryptionMode
+    , proverMode :: ProverMode
     }
-    deriving (Eq, Show)
+    deriving (Eq, Show, Generic)
+    deriving anyclass (ToJSON, FromJSON)
+
+configPathParser :: Parser FilePath
+configPathParser =
+    option
+        str
+        ( long "config"
+            <> help "Path to server configuration yaml file"
+            <> showDefault
+            <> value "config.yaml"
+            <> metavar "PATH"
+        )
 
 defaultServerConfig :: ServerConfig
 defaultServerConfig =
@@ -18,28 +33,27 @@ defaultServerConfig =
         { serverPort = 8083
         , dbFile = "./sqlite.db"
         , nWorkers = 4
-        , contractId = 1
-        , encryptionMode = EncryptedMode
+        , proverMode = Encrypted
         }
 
-cliParser :: ServerConfig -> Parser ServerConfig
-cliParser ServerConfig{..} =
-    ServerConfig
-        <$> portParser serverPort
-        <*> dbFileParser dbFile
-        <*> nWorkersParser nWorkers
-        <*> contractIdParser contractId
-        <*> modeParser encryptionMode
+cliParser :: ServerConfig -> Parser (FilePath, ServerConfig)
+cliParser ServerConfig{..} = do
+    liftA2 (,) configPathParser $
+        ServerConfig
+            <$> portParser serverPort
+            <*> dbFileParser dbFile
+            <*> nWorkersParser nWorkers
+            <*> modeParser proverMode
   where
-    modeReader :: ReadM EncryptionMode
+    modeReader :: ReadM ProverMode
     modeReader = do
         arg <- str
         case arg of
-            "encrypted" -> return EncryptedMode
-            "unencrypted" -> return UnencryptedMode
+            "encrypted" -> return Encrypted
+            "plain" -> return Plain
             _ -> readerError $ "Invalid value: " ++ arg ++ ". Allowed values: encrypted, unencrypted."
 
-    modeParser :: EncryptionMode -> Parser EncryptionMode
+    modeParser :: ProverMode -> Parser ProverMode
     modeParser d =
         option
             modeReader
@@ -86,14 +100,21 @@ cliParser ServerConfig{..} =
                 <> metavar "N"
             )
 
-    contractIdParser :: Int -> Parser Int
-    contractIdParser d =
-        option
-            auto
-            ( long "contract-id"
-                <> short 'c'
-                <> help "Contract ID"
-                <> showDefault
-                <> value d
-                <> metavar "ID"
+parseConfig :: IO ServerConfig
+parseConfig = do
+    (configPath, cliConfig) <- execParser $ opts defaultServerConfig
+    fileExist <- doesFileExist configPath
+    if fileExist
+        then do
+            fileConfig <- decodeFileThrow configPath
+            snd <$> execParser (opts fileConfig)
+        else do
+            pure cliConfig
+  where
+    opts defaultConfig =
+        info
+            (cliParser defaultConfig <**> helper)
+            ( fullDesc
+                <> progDesc "Smart Wallet prover"
+                <> header "zkFold's Smart Wallet prover server"
             )
