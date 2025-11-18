@@ -3,6 +3,7 @@ REST API server for zkFold Symbolic proof generation. Leverages the [Symbolic](h
 
 
 # Before start
+# Before start
 Before running, you need to make sure you have installed `sqlite3`.
 ```bash
 sudo apt-get install sqlite3 libsqlite3-dev
@@ -37,18 +38,35 @@ For run simple prover server
 cabal run zkfold-prover-api
 ```
 
+# Docs
+You can view the documentation after starting the server using the /docs endpoint.
+Example: http://localhost:8083/docs/
+
 # Example query
-You can test the server by sending the following request
+Once the server is running in encrypted mode, you can send a test request to get keys:
+```bash
+curl -X GET localhost:8083/v0/keys
 ```
-curl -X GET -H "Content-Type: application/json" localhost:8083/v0/stats
-```
-You should see something akin to
+Example output:
 ```json
-{
-    "total_valid_proofs":0,
-    "longest_queue_size":0,
-    "average_proof_time_seconds":0.0
-}
+[
+    {
+        "id":"55ffae1d-cc75-4d70-9e1e-7eadbffa6a74",
+        "public": {
+            "public_e":"65537",
+            "public_n":"0",
+            "public_size":"2048"
+        }
+    },
+    {
+        "id":"48f085ea-9b6c-4839-8192-e60516be602c",
+        "public": {
+            "public_e":"65537",
+            "public_n":"0",
+            "public_size":"2048"
+        }
+    }
+]
 ```
 
 # Tests
