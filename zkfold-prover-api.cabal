@@ -9,6 +9,7 @@ author:             Vardominator, Murat Kasimov, Ilya Barishnikov, Vladimir Siny
 maintainer:         vlasin@zkfold.io
 build-type:         Simple
 extra-doc-files:    CHANGELOG.md
+data-files:         web/robots.txt
 
 Flag Pedantic
     Description: Enable pedantic build with -Werror
@@ -66,6 +67,7 @@ library
   
   exposed-modules:     
     ZkFold.Prover.API.Server
+    ZkFold.Prover.API.Robots
     ZkFold.Prover.API.Encryption
     ZkFold.Prover.API.Executor
     ZkFold.Prover.API.Orphans
@@ -95,6 +97,7 @@ library
     , aeson-casing
     , insert-ordered-containers
     , bytestring
+    , http-types
     , text
     , lens
     , warp
