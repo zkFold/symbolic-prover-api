@@ -19,6 +19,7 @@ import Database.SQLite.Simple.ToField (ToField (toField))
 import GHC.Generics
 import ZkFold.Prover.API.Types.Prove hiding (ProofStatus (..))
 import ZkFold.Prover.API.Types.Prove qualified as P
+import ZkFold.Prover.API.Types.Stats (ProverStats (..))
 import ZkFold.Prover.API.Types.Status
 import Prelude hiding (id)
 
@@ -33,8 +34,7 @@ instance ToField UUID where
     toField = SQLText . toText
 
 data Record = Record
-    { id :: Int
-    , queryUUID :: UUID
+    { queryUUID :: UUID
     , status :: Status
     , createTime :: UTCTime
     , proofBytes :: Maybe ByteString
@@ -44,7 +44,6 @@ data Record = Record
 
 instance FromRow Record where
     fromRow = do
-        id <- field
         queryUUID <- field
         status <- field
         createTime <- field
@@ -56,8 +55,7 @@ createQueryTable :: Query
 createQueryTable =
     " \
     \ CREATE TABLE IF NOT EXISTS prove_request_table ( \
-    \     id INTEGER PRIMARY KEY AUTOINCREMENT, \
-    \     query_uuid varchar(36) NOT NULL, \
+    \     query_uuid varchar(36) PRIMARY KEY NOT NULL, \
     \     status varchar(16) NOT NULL, \
     \     create_time TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP, \
     \     proof_bytes BLOB, \
@@ -69,10 +67,10 @@ initDatabase :: Connection -> IO ()
 initDatabase conn = do
     void $ execute_ conn createQueryTable
 
-addNewProveQuery :: Connection -> UUID -> IO Int
+addNewProveQuery :: Connection -> UUID -> IO ()
 addNewProveQuery conn uuid = do
-    [Only result] <-
-        query
+    void $
+        execute
             conn
             " \
             \ INSERT INTO \
@@ -81,10 +79,8 @@ addNewProveQuery conn uuid = do
             \         status \
             \     ) \
             \ VALUES (?, 'QUEUED') \
-            \ RETURNING id; \
             \ "
             (Only uuid)
-    pure result
 
 getProofStatus ::
     forall o.
@@ -123,14 +119,13 @@ getProofStatus conn (ProofId uuid) = do
         (Failed, _) -> P.Failed
         _ -> P.NotFound
 
-getRecord :: Connection -> Int -> IO Record
-getRecord conn id = do
+getRecord :: Connection -> UUID -> IO Record
+getRecord conn uuid = do
     [record] <-
         query
             conn
             " \
             \ SELECT \
-            \     id, \
             \     query_uuid, \
             \     status, \
             \     create_time, \
@@ -138,41 +133,41 @@ getRecord conn id = do
             \     proof_time \
             \ FROM prove_request_table \
             \ WHERE \
-            \     id = ? \
+            \     query_uuid = ? \
             \ "
-            (Only id)
+            (Only uuid)
     pure record
 
-markAsPending :: Connection -> Int -> IO ()
-markAsPending conn id = do
+markAsPending :: Connection -> UUID -> IO ()
+markAsPending conn uuid = do
     void $
         execute
             conn
             " \
             \ UPDATE prove_request_table \
             \ SET status = 'PENDING' \
-            \ WHERE id = ?; \
+            \ WHERE query_uuid = ?; \
             \ "
-            (Only id)
+            (Only uuid)
 
-markAsFailed :: Connection -> Int -> IO ()
-markAsFailed conn id = do
+markAsFailed :: Connection -> UUID -> IO ()
+markAsFailed conn uuid = do
     void $
         execute
             conn
             " \
             \ UPDATE prove_request_table \
             \ SET status = 'FAILED' \
-            \ WHERE id = ?; \
+            \ WHERE query_uuid = ?; \
             \ "
-            (Only id)
+            (Only uuid)
 
 finishTask ::
     Connection ->
-    Int ->
+    UUID ->
     ByteString ->
     IO ()
-finishTask conn id proofBytes = do
+finishTask conn uuid proofBytes = do
     void $
         execute
             conn
@@ -181,6 +176,69 @@ finishTask conn id proofBytes = do
             \ SET status = 'COMPLETED', \
             \     proof_bytes = ?, \
             \     proof_time = CURRENT_TIMESTAMP  \
-            \ WHERE id = ?; \
+            \ WHERE query_uuid = ?; \
             \ "
-            (proofBytes, id)
+            (proofBytes, uuid)
+
+deleteOldProofs :: Connection -> Int -> IO ()
+deleteOldProofs conn days = do
+    void $
+        execute
+            conn
+            " \
+            \ DELETE FROM prove_request_table \
+            \ WHERE julianday('now') - julianday(create_time) >= ? \
+            \ "
+            (Only days)
+
+getProverStats :: Connection -> IO ProverStats
+getProverStats conn = do
+    [Only psTotalValidProofs] <-
+        query_
+            conn
+            " \
+            \ SELECT COUNT(*) \
+            \ FROM prove_request_table \
+            \ WHERE create_time >= datetime('now', '-1 day'); \
+            \ "
+
+    [Only psLongestQueueSize] <-
+        query_
+            conn
+            " \
+            \ SELECT \
+            \   COALESCE(MAX(QueueLengthAtCreateTime), 0)\
+            \ FROM \
+            \   ( \
+            \     SELECT \
+            \       t1.create_time, \
+            \       ( \
+            \         SELECT  COUNT(*) \
+            \         FROM  prove_request_table AS t2 \
+            \         WHERE \
+            \           (t2.create_time <= t1.create_time) AND \
+            \           (( t2.proof_time > t1.create_time) OR (t2.proof_time IS NULL)) \
+            \       )  AS QueueLengthAtCreateTime\
+            \     FROM \
+            \       prove_request_table  AS t1 \
+            \     WHERE \
+            \       t1.create_time >= datetime('now', '-1 day') \
+            \   ) \
+            \ "
+
+    [Only psAverageProofTimeSeconds] <-
+        query_
+            conn
+            " \
+            \ SELECT \
+            \   COALESCE(AVG( \
+            \     (JULIANDAY(proof_time) - JULIANDAY(create_time)) * 86400 \
+            \   ), 0.0) \
+            \ FROM \
+            \   prove_request_table \
+            \ WHERE \
+            \   proof_time IS NOT NULL \
+            \   AND create_time >= datetime('now', '-1 day'); \
+            \ "
+
+    pure $ ProverStats{..}

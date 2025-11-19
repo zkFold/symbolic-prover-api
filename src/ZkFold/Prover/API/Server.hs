@@ -11,7 +11,7 @@ import Control.Concurrent.STM.TVar (readTVarIO)
 import Control.Monad (forever, replicateM_)
 import Control.Monad.STM (atomically)
 import Data.Pool
-import Data.Time (diffUTCTime, nominalDay)
+import Data.Time (diffUTCTime, secondsToNominalDiffTime)
 import Data.Time.Clock (
     NominalDiffTime,
     getCurrentTime,
@@ -23,7 +23,8 @@ import Network.Wai.Handler.Warp (run)
 import Network.Wai.Middleware.Cors (CorsResourcePolicy (..), cors, corsRequestHeaders)
 import Network.Wai.Middleware.RequestLogger (logStdout)
 import Servant
-import ZkFold.Prover.API.Database (initDatabase)
+import System.Cron.Schedule
+import ZkFold.Prover.API.Database (deleteOldProofs, initDatabase)
 import ZkFold.Prover.API.Executor
 import ZkFold.Prover.API.Handler.Encrypted qualified as Encrypted
 import ZkFold.Prover.API.Handler.Unencrypted qualified as Unencrypted
@@ -52,10 +53,15 @@ keyUpdater :: Ctx nip -> NominalDiffTime -> IO ()
 keyUpdater ctx period = forever $ do
     [old, new] <- readTVarIO $ ctxServerKeys ctx
     time <- getCurrentTime
-    let sleepTime = fromEnum (nominalDiffTimeToSeconds (kpExpires old `diffUTCTime` time)) `div` 1000000
+    let sleepTime = fromEnum (nominalDiffTimeToSeconds (kpExpires old `diffUTCTime` time)) `div` (10 ^ (6 :: Int))
     threadDelay sleepTime
     newest <- randomKeyPair period
     atomically $ writeTVar (ctxServerKeys ctx) [new, newest]
+
+oldProofDeleter :: Ctx nip -> Int -> IO ()
+oldProofDeleter ctx maxDays = do
+    withResource (ctxConnectionPool ctx) $ \conn -> do
+        deleteOldProofs conn maxDays
 
 runServer ::
     forall i o.
@@ -64,9 +70,9 @@ runServer ::
     ) =>
     ServerConfig -> IO ()
 runServer ServerConfig{..} = do
-    let period = nominalDay
-    oldKey <- randomKeyPair (period / 2)
-    newKey <- randomKeyPair period
+    let keyLifetime = secondsToNominalDiffTime $ toEnum $ keysLifetime * (10 ^ (12 :: Int))
+    oldKey <- randomKeyPair (keyLifetime / 2)
+    newKey <- randomKeyPair keyLifetime
     keysVar <- newTVarIO [oldKey, newKey]
     queue <- newTQueueIO
 
@@ -82,7 +88,9 @@ runServer ServerConfig{..} = do
                 , ctxProverMode = proverMode
                 }
 
-    _keyUpdaterThreadId <- forkIO $ keyUpdater ctx period
+    _oldProofsDeleterThreadId <- execSchedule $ do
+        addJob (oldProofDeleter ctx proofLifetime) "0 0 * * *"
+    _keyUpdaterThreadId <- forkIO $ keyUpdater ctx keyLifetime
 
     replicateM_ nWorkers $ forkIO (proofExecutor @i @o ctx)
 

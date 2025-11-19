@@ -1,5 +1,4 @@
 {-# LANGUAGE AllowAmbiguousTypes #-}
-{-# LANGUAGE PolyKinds #-}
 
 module ZkFold.Prover.API.Handler.Unencrypted where
 
@@ -16,7 +15,7 @@ import Servant
 import Servant.Swagger
 import Servant.Swagger.UI
 import ZkFold.Prover.API.Database
-import ZkFold.Prover.API.Handler.General (MainAPI, ProofStatusEndpoint, V0, baseOpenApi, handleProofStatus)
+import ZkFold.Prover.API.Handler.General (MainAPI, ProofStatusEndpoint, StatsEndpoint, V0, baseOpenApi, handleProofStatus, handleStats)
 import ZkFold.Prover.API.Orphans ()
 import ZkFold.Prover.API.Robots (handleRobots)
 import ZkFold.Prover.API.Types
@@ -33,6 +32,7 @@ type ProveUnencryptedEndpoint i =
 type ProverUnencryptedEndpoint i o =
     ProofStatusEndpoint o
         :<|> ProveUnencryptedEndpoint i
+        :<|> StatsEndpoint
 
 openApi :: forall i o. (ProveAlgorithm i o) => Swagger
 openApi =
@@ -47,14 +47,15 @@ handleProve :: forall i. Ctx i -> i -> Handler ProofId
 handleProve Ctx{..} w = do
     liftIO $ withResource ctxConnectionPool $ \conn -> do
         uuid <- nextRandom
-        id <- addNewProveQuery conn uuid
-        atomically $ writeTQueue ctxProofQueue (id, UnencryptedWD w)
+        addNewProveQuery conn uuid
+        atomically $ writeTQueue ctxProofQueue (uuid, UnencryptedWD w)
         pure $ ProofId uuid
 
 handleProverApi :: forall i o. (FromJSON o) => Ctx i -> Servant.Server (V0 :> ProverUnencryptedEndpoint i o)
 handleProverApi ctx =
     handleProofStatus ctx
         :<|> handleProve ctx
+        :<|> handleStats ctx
 
 mainApi :: forall i o. Proxy (MainAPI (V0 :> ProverUnencryptedEndpoint i o))
 mainApi = Proxy

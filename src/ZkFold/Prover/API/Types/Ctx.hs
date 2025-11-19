@@ -8,9 +8,11 @@ import Control.Concurrent.STM (TQueue, TVar)
 
 import Data.Aeson
 import Data.Pool
+import Data.UUID (UUID)
 import Database.SQLite.Simple
 import ZkFold.Prover.API.Types.Encryption
 import ZkFold.Prover.API.Types.Prove
+import Data.Text (toLower)
 
 data WitnessData w = EncryptedWD ZKProveRequest | UnencryptedWD w
 
@@ -22,7 +24,7 @@ instance ToJSON ProverMode where
     toJSON Plain = "plain"
 
 instance FromJSON ProverMode where
-    parseJSON = withText "ProverMode" f
+    parseJSON = withText "ProverMode" (f . toLower)
       where
         f "encrypted" = pure Encrypted
         f "plain" = pure Plain
@@ -32,6 +34,6 @@ instance FromJSON ProverMode where
 data Ctx w = Ctx
     { ctxConnectionPool :: Pool Connection
     , ctxServerKeys :: !(TVar [KeyPair])
-    , ctxProofQueue :: TQueue (Int, WitnessData w)
+    , ctxProofQueue :: TQueue (UUID, WitnessData w)
     , ctxProverMode :: ProverMode
     }
