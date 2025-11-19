@@ -18,7 +18,7 @@ proverMode: encrypted
 ```
 Also you can use cli arguments
 ```bash
-cabal run zkfold-prover-api -- 
+cabal run symbolic-prover-api -- 
     \ --port 8083 
     \ --db-file sqlite.db
     \ --mode encrypted
@@ -30,7 +30,7 @@ Command line arguments take precedence over configuration file arguments. If no 
 
 For run simple prover server
 ```bash
-cabal run zkfold-prover-api
+cabal run symbolic-prover-api
 ```
 
 # Docs

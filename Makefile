@@ -1,4 +1,4 @@
-APP_NAME=zkfold-prover-api
+APP_NAME=symbolic-prover-api
 DOCKER_IMAGE=$(APP_NAME):latest
 PORT ?= 8080
 
@@ -9,7 +9,7 @@ build:
 	cabal build
 
 run: build
-	PORT=$(PORT) cabal run
+	PORT=$(PORT) cabal run symbolic-prover-api
 
 # docker-build:
 # 	docker build -t $(DOCKER_IMAGE) .

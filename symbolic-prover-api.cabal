@@ -1,11 +1,11 @@
 cabal-version:      3.0
-name:               zkfold-prover-api
+name:               symbolic-prover-api
 version:            0.1.0.0
-synopsis:           ZkFold's prover backend API for constructing ZK proofs
+synopsis:           zkFold's symbolic prover backend API for constructing ZK proofs
 homepage:           https://zkfold.io/
 license:            MIT
 license-file:       LICENSE
-author:             Vardominator, Murat Kasimov, Ilya Barishnikov, Vladimir Sinyakov
+author:             Vladimir Sinyakov, Evgenii Samodelov, Vladimir Morozov
 maintainer:         vlasin@zkfold.io
 build-type:         Simple
 extra-doc-files:    CHANGELOG.md
@@ -117,13 +117,13 @@ library
     , yaml
   hs-source-dirs:      src
 
-executable zkfold-prover-api
-    import:           options
-    main-is:          Main.hs
-    build-depends:    base >=4.18.1.0 && <5
-                    , zkfold-prover-api
-                    , optparse-applicative
-                    , bytestring
-                    , symbolic-base
-                    , swagger2
-    hs-source-dirs:   app
+executable symbolic-prover-api
+  import:           options
+  main-is:          Main.hs
+  build-depends:    base >=4.18.1.0 && <5
+    , symbolic-prover-api
+    , optparse-applicative
+    , bytestring
+    , symbolic-base
+    , swagger2
+  hs-source-dirs:   app
