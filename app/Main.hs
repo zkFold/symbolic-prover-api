@@ -61,6 +61,5 @@ instance ProveAlgorithm (PlonkupWitnessInput I G1, PlonkupProverSecret G1) (Plon
 main :: IO ()
 main = do
     serverConfig <- parseConfig
-
     print @String ("Started with " <> show serverConfig)
     runServer @(Witness (PlonkupExample 16)) @(Proof (PlonkupExample 16)) serverConfig

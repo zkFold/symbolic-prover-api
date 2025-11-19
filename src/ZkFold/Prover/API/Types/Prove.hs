@@ -9,15 +9,17 @@ module ZkFold.Prover.API.Types.Prove (
 ) where
 
 import Data.Time.Clock (UTCTime)
-import Data.UUID (UUID)
+import Data.UUID qualified as UUID (UUID, nil, toText)
 import Deriving.Aeson
 
 import Control.Lens
+import Data.Aeson (ToJSON (..))
 import Data.Aeson.Casing
 import Data.Char (isLower)
 import Data.Data
 import Data.Swagger qualified as Swagger
 import Data.Swagger.Declare qualified as Swagger
+import Data.Swagger.Internal.Schema qualified as Swagger
 import Data.Text qualified as T
 import ZkFold.Prover.API.Types.Common (addDescription, addFieldDescription)
 import ZkFold.Prover.API.Types.Encryption (KeyID)
@@ -104,11 +106,16 @@ instance forall o. (Swagger.ToSchema o) => Swagger.ToSchema (ZKProveResult o) wh
             Swagger.defaultSchemaOptions{Swagger.fieldLabelModifier = snakeCase . dropWhile isLower}
             & addSwaggerDescription "ZK proof bytes with a timestamp"
 
-newtype ProofId = ProofId UUID
+newtype ProofId = ProofId UUID.UUID
     deriving stock (Eq, Generic, Ord, Show)
     deriving newtype (FromJSON, ToJSON)
 
 instance Swagger.ToSchema ProofId where
-    declareNamedSchema =
-        Swagger.genericDeclareNamedSchema Swagger.defaultSchemaOptions
-            & addSwaggerDescription "ID of a submitted prove request"
+    declareNamedSchema _ =
+        pure $
+            Swagger.named "UUID" $
+                mempty
+                    & Swagger.type_ ?~ Swagger.SwaggerString
+                    & Swagger.format ?~ "string"
+                    & Swagger.example ?~ toJSON ("\"" <> UUID.toText UUID.nil <> "\"")
+                    & Swagger.description ?~ "ID of a submitted prove request"

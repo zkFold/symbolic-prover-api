@@ -16,6 +16,7 @@ import Servant.Swagger.UI
 import ZkFold.Prover.API.Database
 import ZkFold.Prover.API.Types
 import ZkFold.Prover.API.Types.Encryption ()
+import ZkFold.Prover.API.Types.Stats (ProverStats)
 import Prelude hiding (id)
 
 type V0 :: Symbol
@@ -24,12 +25,6 @@ type V0 = "v0"
 type InfoAPI = SwaggerSchemaUI "docs" "swagger.json"
 
 type MainAPI api = api :<|> InfoAPI
-
-type ProofStatusEndpoint o =
-    Summary "Check the status of a proof."
-        :> "proof-status"
-        :> ReqBody '[JSON] ProofId
-        :> Post '[JSON] (ProofStatus o)
 
 baseOpenApi :: Swagger -> Swagger
 baseOpenApi api =
@@ -57,5 +52,23 @@ baseOpenApi api =
             . description
             ?~ "API to interact with zkFold Prover Server"
 
+-- | Type for the /proof-status endpoint
+type ProofStatusEndpoint o =
+    Summary "Check the status of a proof."
+        :> "proof-status"
+        :> ReqBody '[JSON] ProofId
+        :> Post '[JSON] (ProofStatus o)
+
+-- | Handler for the /proof-status endpoint
 handleProofStatus :: forall i o. (FromJSON o) => Ctx i -> ProofId -> Handler (ProofStatus o)
 handleProofStatus Ctx{..} pid = liftIO $ withResource ctxConnectionPool $ \conn -> getProofStatus @o conn pid
+
+-- | Type for the /stats endpoint
+type StatsEndpoint =
+    Summary "Get prover statistics."
+        :> "stats"
+        :> Get '[JSON] ProverStats
+
+-- | Handler for the /stats endpoint
+handleStats :: forall i. Ctx i -> Handler ProverStats
+handleStats Ctx{..} = liftIO $ withResource ctxConnectionPool $ \conn -> getProverStats conn

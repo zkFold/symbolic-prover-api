@@ -1,17 +1,27 @@
 module ZkFold.Prover.API.Types.Config where
 
+import Data.Yaml (decodeFileThrow)
+import GHC.Generics
 import Options.Applicative
 import ZkFold.Prover.API.Types.Ctx (ProverMode (..))
-import GHC.Generics (Generic)
-import Data.Aeson (ToJSON, FromJSON)
+
 import System.Directory (doesFileExist)
-import Data.Yaml (decodeFileThrow)
+
+import Data.Aeson
 
 data ServerConfig = ServerConfig
     { serverPort :: Int
+    -- ^ Server port (default: 8083)
     , dbFile :: String
+    -- ^ Path to SQLite database file (default: ./sqlite.db)
     , nWorkers :: Int
+    -- ^ Number of worker threads (default: 2)
     , proverMode :: ProverMode
+    -- ^ Prover mode: Encrypted or Plain (default: Encrypted)
+    , proofLifetime :: Int
+    -- ^ Proof lifetime in days (default: 30 days)
+    , keysLifetime :: Int
+    -- ^ Key lifetime in seconds (default: 24 hours)
     }
     deriving (Eq, Show, Generic)
     deriving anyclass (ToJSON, FromJSON)
@@ -23,7 +33,7 @@ configPathParser =
         ( long "config"
             <> help "Path to server configuration yaml file"
             <> showDefault
-            <> value "config.yaml"
+            <> value ""
             <> metavar "PATH"
         )
 
@@ -32,8 +42,10 @@ defaultServerConfig =
     ServerConfig
         { serverPort = 8083
         , dbFile = "./sqlite.db"
-        , nWorkers = 4
+        , nWorkers = 2
         , proverMode = Encrypted
+        , proofLifetime = 30
+        , keysLifetime = 86400
         }
 
 cliParser :: ServerConfig -> Parser (FilePath, ServerConfig)
@@ -44,6 +56,8 @@ cliParser ServerConfig{..} = do
             <*> dbFileParser dbFile
             <*> nWorkersParser nWorkers
             <*> modeParser proverMode
+            <*> proofLifetimeParser proofLifetime
+            <*> keysLifetimeParser keysLifetime
   where
     modeReader :: ReadM ProverMode
     modeReader = do
@@ -58,7 +72,7 @@ cliParser ServerConfig{..} = do
         option
             modeReader
             ( long "mode"
-                <> help "Encryption mode: encrypted or decrypted"
+                <> help "Encryption mode: encrypted or plain"
                 <> short 'm'
                 <> showDefault
                 <> value d
@@ -98,6 +112,28 @@ cliParser ServerConfig{..} = do
                 <> showDefault
                 <> value d
                 <> metavar "N"
+            )
+
+    proofLifetimeParser :: Int -> Parser Int
+    proofLifetimeParser d =
+        option
+            auto
+            ( long "proof-lifetime"
+                <> help "Proof lifetime in days"
+                <> showDefault
+                <> value d
+                <> metavar "DAYS"
+            )
+
+    keysLifetimeParser :: Int -> Parser Int
+    keysLifetimeParser d =
+        option
+            auto
+            ( long "keys-lifetime"
+                <> help "Key lifetime in seconds"
+                <> showDefault
+                <> value d
+                <> metavar "SECONDS"
             )
 
 parseConfig :: IO ServerConfig
