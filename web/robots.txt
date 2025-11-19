@@ -1,0 +1,10 @@
+# zkFold Smart Wallet
+#
+# Your gateway to crypto and Web3
+#
+# Create your wallet in just seconds by signing in with your Google or Apple account, no seed phrases or complex setups required. Send crypto instantly to anyone using their email, even if they don't have a wallet yet. Retain full self-custody. Secured by zero-knowledge cryptography.
+
+User-agent: *
+Disallow: /
+# Allow access to documentation
+Allow: /docs

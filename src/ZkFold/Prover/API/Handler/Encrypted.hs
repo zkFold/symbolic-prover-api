@@ -18,6 +18,7 @@ import ZkFold.Prover.API.Database
 import ZkFold.Prover.API.Encryption
 import ZkFold.Prover.API.Handler.General (MainAPI, ProofStatusEndpoint, V0, baseOpenApi, handleProofStatus)
 import ZkFold.Prover.API.Orphans ()
+import ZkFold.Prover.API.Robots (handleRobots)
 import ZkFold.Prover.API.Types
 import ZkFold.Prover.API.Types.Encryption ()
 import ZkFold.Prover.API.Types.ProveAlgorithm (ProveAlgorithm)
@@ -69,4 +70,7 @@ mainApi :: forall i o. Proxy (MainAPI (V0 :> ProverEncryptedEndpoints i o))
 mainApi = Proxy
 
 mainServer :: forall i o. (ProveAlgorithm i o) => Ctx i -> Servant.Server (MainAPI (V0 :> ProverEncryptedEndpoints i o))
-mainServer ctx = handleProverApi @i @o ctx :<|> swaggerSchemaUIServerT (openApi @i @o)
+mainServer ctx =
+    handleProverApi @i @o ctx
+        :<|> swaggerSchemaUIServerT (openApi @i @o)
+        :<|> handleRobots
