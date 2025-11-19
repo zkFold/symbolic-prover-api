@@ -11,7 +11,7 @@ build-type:         Simple
 extra-doc-files:    CHANGELOG.md
 data-files:         web/robots.txt
 
-Flag Pedantic
+Flag pedantic
     Description: Enable pedantic build with -Werror
     Manual: True
     Default: False
