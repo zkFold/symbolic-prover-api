@@ -14,6 +14,7 @@ import Servant
 import Servant.Swagger ()
 import Servant.Swagger.UI
 import ZkFold.Prover.API.Database
+import ZkFold.Prover.API.Robots (RobotsAPI)
 import ZkFold.Prover.API.Types
 import ZkFold.Prover.API.Types.Encryption ()
 import ZkFold.Prover.API.Types.Stats (ProverStats)
@@ -24,7 +25,7 @@ type V0 = "v0"
 
 type InfoAPI = SwaggerSchemaUI "docs" "swagger.json"
 
-type MainAPI api = api :<|> InfoAPI
+type MainAPI api = api :<|> InfoAPI :<|> RobotsAPI
 
 baseOpenApi :: Swagger -> Swagger
 baseOpenApi api =

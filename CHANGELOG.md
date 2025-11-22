@@ -1,4 +1,4 @@
-# Revision history for zkfold-prover-api
+# Revision history for symbolic-prover-api
 
 ## 0.1.0.0 -- YYYY-mm-dd
 

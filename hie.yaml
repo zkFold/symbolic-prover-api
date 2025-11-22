@@ -1,7 +1,7 @@
 cradle:
   cabal:
     - path: "./src"
-      component: "lib:zkfold-prover-api"
+      component: "lib:symbolic-prover-api"
 
     - path: "./app"
-      component: "zkfold-prover-api:exe:zkfold-prover-api"
+      component: "symbolic-prover-api:exe:symbolic-prover-api"

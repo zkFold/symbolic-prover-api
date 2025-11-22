@@ -2,7 +2,7 @@ FROM haskell:9.6.3 as build
 
 WORKDIR /app
 
-COPY zkfold-prover-api.cabal cabal.project /app/
+COPY symbolic-prover-api.cabal cabal.project /app/
 
 RUN cabal update
 
@@ -16,6 +16,6 @@ RUN apt-get update && apt-get install -y libgmp10 && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
 
-COPY --from=build /usr/local/bin/zkfold-prover-api /app/zkfold-prover-api
+COPY --from=build /usr/local/bin/symbolic-prover-api /app/symbolic-prover-api
 
 EXPOSE 8080
