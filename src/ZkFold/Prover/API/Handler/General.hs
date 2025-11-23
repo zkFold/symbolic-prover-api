@@ -1,4 +1,6 @@
 {-# LANGUAGE AllowAmbiguousTypes #-}
+{-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
 
 module ZkFold.Prover.API.Handler.General where
 
@@ -8,9 +10,9 @@ import Control.Monad.IO.Class
 import Data.Aeson
 import Data.Pool
 import Data.Swagger (Swagger, URL (..))
-import Data.Swagger.Lens
+import Data.Swagger.Lens hiding (headers)
 import GHC.Base (Symbol)
-import Servant
+import Servant hiding (Header)
 import Servant.Swagger ()
 import Servant.Swagger.UI
 import ZkFold.Prover.API.Database
@@ -26,6 +28,22 @@ type V0 = "v0"
 type InfoAPI = SwaggerSchemaUI "docs" "swagger.json"
 
 type MainAPI api = api :<|> InfoAPI :<|> RobotsAPI
+
+class
+    ( ToJSON i
+    , ToJSON o
+    , FromJSON i
+    , FromJSON o
+    ) =>
+    ProveJSON i o
+
+instance
+    ( ToJSON i
+    , ToJSON o
+    , FromJSON i
+    , FromJSON o
+    ) =>
+    ProveJSON i o
 
 baseOpenApi :: Swagger -> Swagger
 baseOpenApi api =
@@ -61,7 +79,7 @@ type ProofStatusEndpoint o =
         :> Post '[JSON] (ProofStatus o)
 
 -- | Handler for the /proof-status endpoint
-handleProofStatus :: forall i o. (FromJSON o) => Ctx i -> ProofId -> Handler (ProofStatus o)
+handleProofStatus :: forall i o. (ToJSON o, FromJSON o) => Ctx i -> ProofId -> Handler (ProofStatus o)
 handleProofStatus Ctx{..} pid = liftIO $ withResource ctxConnectionPool $ \conn -> getProofStatus @o conn pid
 
 -- | Type for the /stats endpoint

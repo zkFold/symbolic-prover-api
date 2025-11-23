@@ -8,11 +8,11 @@ import Control.Concurrent.STM (TQueue, TVar)
 
 import Data.Aeson
 import Data.Pool
+import Data.Text (toLower)
 import Data.UUID (UUID)
 import Database.SQLite.Simple
 import ZkFold.Prover.API.Types.Encryption
 import ZkFold.Prover.API.Types.Prove
-import Data.Text (toLower)
 
 data WitnessData w = EncryptedWD ZKProveRequest | UnencryptedWD w
 
@@ -36,4 +36,5 @@ data Ctx w = Ctx
     , ctxServerKeys :: !(TVar [KeyPair])
     , ctxProofQueue :: TQueue (UUID, WitnessData w)
     , ctxProverMode :: ProverMode
+    , ctxDelegationServers :: [String]
     }

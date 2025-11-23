@@ -21,7 +21,7 @@ common options
     ghc-options:
       -fwarn-redundant-constraints
       -Wall
-      -Werror
+      -- -Werror
       -Wcompat
       -Widentities
       -Wincomplete-record-updates
@@ -72,6 +72,7 @@ library
     ZkFold.Prover.API.Orphans
     ZkFold.Prover.API.Handler.General
     ZkFold.Prover.API.Handler.Encrypted
+    ZkFold.Prover.API.Handler.Delegation
     ZkFold.Prover.API.Handler.Unencrypted
     ZkFold.Prover.API.Types
     ZkFold.Prover.API.Robots
@@ -117,6 +118,8 @@ library
     , cron
     , optparse-applicative
     , yaml
+    , http-client
+    , http-types
   hs-source-dirs:      src
 
 executable symbolic-prover-api

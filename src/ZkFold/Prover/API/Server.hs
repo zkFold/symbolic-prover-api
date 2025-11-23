@@ -27,6 +27,7 @@ import System.Cron.Schedule
 import ZkFold.Prover.API.Database (deleteOldProofs, initDatabase)
 import ZkFold.Prover.API.Executor
 import ZkFold.Prover.API.Handler.Encrypted qualified as Encrypted
+import ZkFold.Prover.API.Handler.General (ProveJSON)
 import ZkFold.Prover.API.Handler.Unencrypted qualified as Unencrypted
 import ZkFold.Prover.API.Types
 import ZkFold.Prover.API.Types.Config
@@ -67,9 +68,11 @@ runServer ::
     forall i o.
     ( ProveAlgorithm i o
     , MimeUnrender JSON i
+    , ProveJSON i o
     ) =>
     ServerConfig -> IO ()
 runServer ServerConfig{..} = do
+    let delegationServersFixed = (\url -> if last url == '/' then init url else url) <$> delegationServers
     let keyLifetime = secondsToNominalDiffTime $ toEnum $ keysLifetime * (10 ^ (12 :: Int))
     oldKey <- randomKeyPair (keyLifetime / 2)
     newKey <- randomKeyPair keyLifetime
@@ -86,6 +89,7 @@ runServer ServerConfig{..} = do
                 , ctxServerKeys = keysVar
                 , ctxProofQueue = queue
                 , ctxProverMode = proverMode
+                , ctxDelegationServers = delegationServersFixed
                 }
 
     _oldProofsDeleterThreadId <- execSchedule $ do
