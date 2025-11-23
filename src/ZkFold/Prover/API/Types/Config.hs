@@ -22,6 +22,8 @@ data ServerConfig = ServerConfig
     -- ^ Proof lifetime in days (default: 30 days)
     , keysLifetime :: Int
     -- ^ Key lifetime in seconds (default: 24 hours)
+    , delegationServers :: [String]
+    -- ^ Servers which can be used to delegate prove
     }
     deriving (Eq, Show, Generic)
     deriving anyclass (ToJSON, FromJSON)
@@ -46,6 +48,7 @@ defaultServerConfig =
         , proverMode = Encrypted
         , proofLifetime = 30
         , keysLifetime = 86400
+        , delegationServers = []
         }
 
 cliParser :: ServerConfig -> Parser (FilePath, ServerConfig)
@@ -58,6 +61,7 @@ cliParser ServerConfig{..} = do
             <*> modeParser proverMode
             <*> proofLifetimeParser proofLifetime
             <*> keysLifetimeParser keysLifetime
+            <*> delegationServersParser delegationServers
   where
     modeReader :: ReadM ProverMode
     modeReader = do
@@ -135,6 +139,18 @@ cliParser ServerConfig{..} = do
                 <> value d
                 <> metavar "SECONDS"
             )
+
+    delegationServersParser :: [String] -> Parser [String]
+    delegationServersParser d =
+        (\x -> if null x then d else x)
+            <$> many
+                ( strOption
+                    ( long "server"
+                        <> short 's'
+                        <> metavar "URL"
+                        <> help "URL for delegating prover"
+                    )
+                )
 
 parseConfig :: IO ServerConfig
 parseConfig = do

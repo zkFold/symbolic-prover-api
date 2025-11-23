@@ -29,6 +29,8 @@ cabal run symbolic-prover-api --
     \ --n-workers 2
     \ --proof-lifetime 30
     \ --keys-lifetime 86400
+    \ --server http://localhost:8082
+    \ --server http://localhost:8081/
     \ --config config.yaml
 ```
 Command line arguments take precedence over configuration file arguments. If no values ​​are specified, default values ​​are used.
