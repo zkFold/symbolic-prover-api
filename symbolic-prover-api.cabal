@@ -1,85 +1,86 @@
-cabal-version:      3.0
-name:               symbolic-prover-api
-version:            0.1.0.0
-synopsis:           zkFold's symbolic prover backend API for constructing ZK proofs
-homepage:           https://zkfold.io/
-license:            MIT
-license-file:       LICENSE
-author:             Vladimir Sinyakov, Evgenii Samodelov, Vladimir Morozov
-maintainer:         vlasin@zkfold.io
-build-type:         Simple
-extra-doc-files:    CHANGELOG.md
-data-files:         web/robots.txt
+cabal-version: 3.0
+name: symbolic-prover-api
+version: 0.1.0.0
+synopsis: zkFold's symbolic prover backend API for constructing ZK proofs
+homepage: https://zkfold.io/
+license: MIT
+license-file: LICENSE
+author: Vladimir Sinyakov, Evgenii Samodelov, Vladimir Morozov
+maintainer: vlasin@zkfold.io
+build-type: Simple
+extra-doc-files: CHANGELOG.md
+data-files: web/robots.txt
 
-Flag pedantic
-    Description: Enable pedantic build with -Werror
-    Manual: True
-    Default: False
+flag pedantic
+  description: Enable pedantic build with -Werror
+  manual: True
+  default: False
 
 common options
-    default-language: Haskell2010
+  default-language: Haskell2010
+  ghc-options:
+    -fwarn-redundant-constraints
+    -Wall
+    -Werror
+    -Wcompat
+    -Widentities
+    -Wincomplete-record-updates
+    -Wincomplete-uni-patterns
+    -Wnoncanonical-monad-instances
+    -Wpartial-fields
+    -Wredundant-constraints
+    -Wunused-packages
+    -O2
+
+  if flag(pedantic)
     ghc-options:
-      -fwarn-redundant-constraints
-      -Wall
       -Werror
-      -Wcompat
-      -Widentities
-      -Wincomplete-record-updates
-      -Wincomplete-uni-patterns
-      -Wnoncanonical-monad-instances
-      -Wpartial-fields
-      -Wredundant-constraints
-      -Wunused-packages
-      -O2
-    if flag(pedantic)
-      ghc-options:
-        -Werror
-    default-extensions:
-      DataKinds
-      DeriveAnyClass
-      DerivingStrategies
-      DeriveGeneric
-      DerivingVia
-      GADTs
-      LambdaCase
-      MultiWayIf
-      OverloadedStrings
-      RecordWildCards
-      RoleAnnotations
-      TemplateHaskell
-      TypeFamilies
-      TypeFamilyDependencies
-      UndecidableInstances
-      UnicodeSyntax
-      ViewPatterns
-      ImportQualifiedPost
-      FlexibleContexts
-      GeneralizedNewtypeDeriving
-      BangPatterns
-      TypeOperators
-      StandaloneKindSignatures
-      ExplicitForAll
-      TypeApplications
-      ScopedTypeVariables
+  default-extensions:
+    BangPatterns
+    DataKinds
+    DeriveAnyClass
+    DeriveGeneric
+    DerivingStrategies
+    DerivingVia
+    ExplicitForAll
+    FlexibleContexts
+    GADTs
+    GeneralizedNewtypeDeriving
+    ImportQualifiedPost
+    LambdaCase
+    MultiWayIf
+    OverloadedStrings
+    RecordWildCards
+    RoleAnnotations
+    ScopedTypeVariables
+    StandaloneKindSignatures
+    TemplateHaskell
+    TypeApplications
+    TypeFamilies
+    TypeFamilyDependencies
+    TypeOperators
+    UndecidableInstances
+    UnicodeSyntax
+    ViewPatterns
 
 library
-  import:              options
-  
-  exposed-modules:     
-    ZkFold.Prover.API.Server
+  import: options
+  exposed-modules:
+    ZkFold.Prover.API.Database
     ZkFold.Prover.API.Encryption
     ZkFold.Prover.API.Executor
-    ZkFold.Prover.API.Orphans
     ZkFold.Prover.API.Handler
     ZkFold.Prover.API.Handler.Keys
     ZkFold.Prover.API.Handler.ProofStatus
     ZkFold.Prover.API.Handler.ProveEncrypted
     ZkFold.Prover.API.Handler.ProveUnencrypted
     ZkFold.Prover.API.Handler.Stats
-    ZkFold.Prover.API.Types
+    ZkFold.Prover.API.Orphans
     ZkFold.Prover.API.Robots
-    ZkFold.Prover.API.Types.Config
+    ZkFold.Prover.API.Server
+    ZkFold.Prover.API.Types
     ZkFold.Prover.API.Types.Common
+    ZkFold.Prover.API.Types.Config
     ZkFold.Prover.API.Types.Ctx
     ZkFold.Prover.API.Types.Encryption
     ZkFold.Prover.API.Types.Errors
@@ -87,49 +88,53 @@ library
     ZkFold.Prover.API.Types.ProveAlgorithm
     ZkFold.Prover.API.Types.Stats
     ZkFold.Prover.API.Utils
-    ZkFold.Prover.API.Database
+
   other-modules:
     ZkFold.Prover.API.Types.Status
-  build-depends:       
-      base >=4.18.1.0 && <5
-    , cryptonite ^>=0.30
-    , directory
-    , servant-server
-    , servant-swagger
-    , servant-swagger-ui
-    , aeson
-    , aeson-casing
-    , insert-ordered-containers
-    , bytestring
-    , text
-    , lens
-    , warp
-    , deriving-aeson
-    , mtl
-    , stm
-    , swagger2
-    , sqlite-simple
-    , resource-pool
-    , time
-    , uuid
-    , wai
-    , wai-cors
-    , wai-extra
-    , http-types
-    , symbolic-examples
-    , cron
-    , optparse-applicative
-    , yaml
-  hs-source-dirs:      src
+
+  build-depends:
+    aeson,
+    aeson-casing,
+    aeson-pretty,
+    base >=4.18.1.0 && <5,
+    bytestring,
+    cron,
+    cryptonite ^>=0.30,
+    deriving-aeson,
+    directory,
+    http-types,
+    insert-ordered-containers,
+    lens,
+    mtl,
+    optparse-applicative,
+    resource-pool,
+    servant-server,
+    servant-swagger,
+    servant-swagger-ui,
+    sqlite-simple,
+    stm,
+    swagger2,
+    symbolic-examples,
+    text,
+    time,
+    uuid,
+    wai,
+    wai-cors,
+    wai-extra,
+    warp,
+    yaml,
+
+  hs-source-dirs: src
 
 executable symbolic-prover-api
-  import:           options
-  main-is:          Main.hs
-  build-depends:    base >=4.18.1.0 && <5
-    , symbolic-prover-api
-    , optparse-applicative
-    , bytestring
-    , symbolic-base
-    , swagger2
-    , aeson-pretty
-  hs-source-dirs:   app
+  import: options
+  main-is: Main.hs
+  build-depends:
+    base >=4.18.1.0 && <5,
+    bytestring,
+    optparse-applicative,
+    swagger2,
+    symbolic-base,
+    symbolic-prover-api,
+
+  hs-source-dirs: app

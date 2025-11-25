@@ -10,7 +10,9 @@ import Control.Concurrent.STM (newTQueueIO, newTVarIO, writeTVar)
 import Control.Concurrent.STM.TVar (readTVarIO)
 import Control.Monad (forever, replicateM_)
 import Control.Monad.STM (atomically)
+import Data.Aeson.Encode.Pretty (encodePretty)
 import Data.Pool
+import qualified Data.ByteString.Lazy.Char8 as LBS
 import Data.Time (diffUTCTime, secondsToNominalDiffTime)
 import Data.Time.Clock (
     NominalDiffTime,
@@ -69,6 +71,9 @@ runServer ::
     ) =>
     ServerConfig -> IO ()
 runServer ServerConfig{..} = do
+    putStrLn "Started with config:"
+    LBS.putStrLn $ encodePretty ServerConfig{..}
+
     let keyLifetime = secondsToNominalDiffTime $ toEnum $ keysLifetime * (10 ^ (12 :: Int))
     oldKey <- randomKeyPair (keyLifetime / 2)
     newKey <- randomKeyPair keyLifetime
