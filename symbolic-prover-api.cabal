@@ -131,4 +131,5 @@ executable symbolic-prover-api
     , bytestring
     , symbolic-base
     , swagger2
+    , aeson-pretty
   hs-source-dirs:   app

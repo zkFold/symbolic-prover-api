@@ -4,7 +4,9 @@
 
 module Main where
 
+import Data.Aeson.Encode.Pretty (encodePretty)
 import Data.ByteString (ByteString)
+import qualified Data.ByteString.Lazy.Char8 as LBS
 import Data.Swagger (NamedSchema (..), ToSchema (..))
 import GHC.Generics
 import Options.Applicative
@@ -61,5 +63,6 @@ instance ProveAlgorithm (PlonkupWitnessInput I G1, PlonkupProverSecret G1) (Plon
 main :: IO ()
 main = do
     serverConfig <- parseConfig
-    print @String ("Started with " <> show serverConfig)
+    putStrLn "Started with config:"
+    LBS.putStrLn $ encodePretty serverConfig
     runServer @(Witness (PlonkupExample 16)) @(Proof (PlonkupExample 16)) serverConfig
