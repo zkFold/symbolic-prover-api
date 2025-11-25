@@ -70,9 +70,12 @@ library
     ZkFold.Prover.API.Encryption
     ZkFold.Prover.API.Executor
     ZkFold.Prover.API.Orphans
-    ZkFold.Prover.API.Handler.General
-    ZkFold.Prover.API.Handler.Encrypted
-    ZkFold.Prover.API.Handler.Unencrypted
+    ZkFold.Prover.API.Handler
+    ZkFold.Prover.API.Handler.Keys
+    ZkFold.Prover.API.Handler.ProofStatus
+    ZkFold.Prover.API.Handler.ProveEncrypted
+    ZkFold.Prover.API.Handler.ProveUnencrypted
+    ZkFold.Prover.API.Handler.Stats
     ZkFold.Prover.API.Types
     ZkFold.Prover.API.Robots
     ZkFold.Prover.API.Types.Config

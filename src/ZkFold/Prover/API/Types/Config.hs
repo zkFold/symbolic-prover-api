@@ -3,7 +3,6 @@ module ZkFold.Prover.API.Types.Config where
 import Data.Yaml (decodeFileThrow)
 import GHC.Generics
 import Options.Applicative
-import ZkFold.Prover.API.Types.Ctx (ProverMode (..))
 
 import System.Directory (doesFileExist)
 
@@ -16,8 +15,6 @@ data ServerConfig = ServerConfig
     -- ^ Path to SQLite database file (default: ./sqlite.db)
     , nWorkers :: Int
     -- ^ Number of worker threads (default: 2)
-    , proverMode :: ProverMode
-    -- ^ Prover mode: Encrypted or Plain (default: Encrypted)
     , proofLifetime :: Int
     -- ^ Proof lifetime in days (default: 30 days)
     , keysLifetime :: Int
@@ -43,7 +40,6 @@ defaultServerConfig =
         { serverPort = 8083
         , dbFile = "./sqlite.db"
         , nWorkers = 2
-        , proverMode = Encrypted
         , proofLifetime = 30
         , keysLifetime = 86400
         }
@@ -55,30 +51,9 @@ cliParser ServerConfig{..} = do
             <$> portParser serverPort
             <*> dbFileParser dbFile
             <*> nWorkersParser nWorkers
-            <*> modeParser proverMode
             <*> proofLifetimeParser proofLifetime
             <*> keysLifetimeParser keysLifetime
   where
-    modeReader :: ReadM ProverMode
-    modeReader = do
-        arg <- str
-        case arg of
-            "encrypted" -> return Encrypted
-            "plain" -> return Plain
-            _ -> readerError $ "Invalid value: " ++ arg ++ ". Allowed values: encrypted, unencrypted."
-
-    modeParser :: ProverMode -> Parser ProverMode
-    modeParser d =
-        option
-            modeReader
-            ( long "mode"
-                <> help "Encryption mode: encrypted or plain"
-                <> short 'm'
-                <> showDefault
-                <> value d
-                <> metavar "MODE"
-            )
-
     dbFileParser :: FilePath -> Parser FilePath
     dbFileParser d =
         option

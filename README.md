@@ -15,7 +15,6 @@ You can specify server parameters in config file
 serverPort: 8083
 dbFile: sqlite.db
 nWorkers: 2
-proverMode: encrypted
 proofLifetime: 30
 keysLifetime: 86400
 ```
@@ -25,7 +24,6 @@ Also you can use cli arguments
 cabal run symbolic-prover-api -- 
     \ --port 8083 
     \ --db-file sqlite.db
-    \ --mode encrypted
     \ --n-workers 2
     \ --proof-lifetime 30
     \ --keys-lifetime 86400
@@ -43,7 +41,7 @@ You can view the documentation after starting the server using the /docs endpoin
 Example: http://localhost:8083/docs/
 
 # Example query
-Once the server is running in encrypted mode, you can send a test request to get keys:
+Once the server is running you can send a test request to get the public keys exposed by the encrypted proving API:
 ```bash
 curl -X GET localhost:8083/v0/keys
 ```
@@ -68,6 +66,8 @@ Example output:
     }
 ]
 ```
+
+Submit unencrypted witnesses via `POST /v0/prove` or encrypted payloads via `POST /v0/prove-encrypted`.
 
 # Tests
 On the way!

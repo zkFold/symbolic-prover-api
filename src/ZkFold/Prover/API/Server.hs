@@ -26,8 +26,7 @@ import Servant
 import System.Cron.Schedule
 import ZkFold.Prover.API.Database (deleteOldProofs, initDatabase)
 import ZkFold.Prover.API.Executor
-import ZkFold.Prover.API.Handler.Encrypted qualified as Encrypted
-import ZkFold.Prover.API.Handler.Unencrypted qualified as Unencrypted
+import ZkFold.Prover.API.Handler (api, apiServer)
 import ZkFold.Prover.API.Types
 import ZkFold.Prover.API.Types.Config
 import ZkFold.Prover.API.Types.ProveAlgorithm (ProveAlgorithm)
@@ -85,7 +84,6 @@ runServer ServerConfig{..} = do
                 { ctxConnectionPool = pool
                 , ctxServerKeys = keysVar
                 , ctxProofQueue = queue
-                , ctxProverMode = proverMode
                 }
 
     _oldProofsDeleterThreadId <- execSchedule $ do
@@ -97,6 +95,4 @@ runServer ServerConfig{..} = do
     run serverPort $
         logStdout $
             corsMiddleware $
-                case ctxProverMode ctx of
-                    Encrypted -> serve (Encrypted.mainApi @i @o) $ Encrypted.mainServer @i @o ctx
-                    Plain -> serve (Unencrypted.mainApi @i @o) $ Unencrypted.mainServer @i @o ctx
+                serve (api @i @o) (apiServer @i @o ctx)
