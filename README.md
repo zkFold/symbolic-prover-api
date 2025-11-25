@@ -2,15 +2,14 @@
 REST API server for zkFold Symbolic proof generation. Leverages the [Symbolic](https://github.com/zkFold/symbolic/tree/main) framework.
 
 
-# Before start
-# Before start
+# Prerequisites
 Before running, you need to make sure you have installed `sqlite3`.
 ```bash
 sudo apt-get install sqlite3 libsqlite3-dev
 ```
 
-# Start server
-You can specify server parameters in config file
+# Running the server
+You must provide a configuration file path when starting the server. Pass it via `--config PATH` (or the short form `-c PATH`). The file can look like:
 ```yaml
 serverPort: 8083
 dbFile: sqlite.db
@@ -19,21 +18,9 @@ proofLifetime: 30
 keysLifetime: 86400
 ```
 
-Also you can use cli arguments
+To start the server, run:
 ```bash
-cabal run symbolic-prover-api -- 
-    \ --port 8083 
-    \ --db-file sqlite.db
-    \ --n-workers 2
-    \ --proof-lifetime 30
-    \ --keys-lifetime 86400
-    \ --config config.yaml
-```
-Command line arguments take precedence over configuration file arguments. If no values ​​are specified, default values ​​are used.
-
-For run simple prover server
-```bash
-cabal run symbolic-prover-api
+cabal run symbolic-prover-api -- -c config.yaml
 ```
 
 # Docs
