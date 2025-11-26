@@ -3,11 +3,9 @@
 # Server port number
 serverPort: 8083
 # Database file path
-dbFile: sqlite.db
+dbFile: proofs.db
 # Number of worker threads
 nWorkers: 2
-# Prover mode: `plain` or `encrypted`
-proverMode: encrypted
 # Proof lifetime in days
 proofLifetime: 30
 # Key lifetime in seconds
