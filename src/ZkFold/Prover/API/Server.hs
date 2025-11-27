@@ -10,7 +10,9 @@ import Control.Concurrent.STM (newTQueueIO, newTVarIO, writeTVar)
 import Control.Concurrent.STM.TVar (readTVarIO)
 import Control.Monad (forever, replicateM_)
 import Control.Monad.STM (atomically)
+import Data.Aeson.Encode.Pretty (encodePretty)
 import Data.Pool
+import qualified Data.ByteString.Lazy.Char8 as LBS
 import Data.Time (diffUTCTime, secondsToNominalDiffTime)
 import Data.Time.Clock (
     NominalDiffTime,
@@ -26,9 +28,7 @@ import Servant
 import System.Cron.Schedule
 import ZkFold.Prover.API.Database (deleteOldProofs, initDatabase)
 import ZkFold.Prover.API.Executor
-import ZkFold.Prover.API.Handler.Encrypted qualified as Encrypted
-import ZkFold.Prover.API.Handler.General (ProveJSON)
-import ZkFold.Prover.API.Handler.Unencrypted qualified as Unencrypted
+import ZkFold.Prover.API.Handler (api, apiServer)
 import ZkFold.Prover.API.Types
 import ZkFold.Prover.API.Types.Config
 import ZkFold.Prover.API.Types.ProveAlgorithm (ProveAlgorithm)
@@ -72,6 +72,9 @@ runServer ::
     ) =>
     ServerConfig -> IO ()
 runServer ServerConfig{..} = do
+    putStrLn "Started with config:"
+    LBS.putStrLn $ encodePretty ServerConfig{..}
+
     let delegationServersFixed = (\url -> if last url == '/' then init url else url) <$> delegationServers
     let keyLifetime = secondsToNominalDiffTime $ toEnum $ keysLifetime * (10 ^ (12 :: Int))
     oldKey <- randomKeyPair (keyLifetime / 2)
@@ -88,7 +91,6 @@ runServer ServerConfig{..} = do
                 { ctxConnectionPool = pool
                 , ctxServerKeys = keysVar
                 , ctxProofQueue = queue
-                , ctxProverMode = proverMode
                 , ctxDelegationServers = delegationServersFixed
                 }
 
@@ -101,6 +103,4 @@ runServer ServerConfig{..} = do
     run serverPort $
         logStdout $
             corsMiddleware $
-                case ctxProverMode ctx of
-                    Encrypted -> serve (Encrypted.mainApi @i @o) $ Encrypted.mainServer @i @o ctx
-                    Plain -> serve (Unencrypted.mainApi @i @o) $ Unencrypted.mainServer @i @o ctx
+                serve (api @i @o) (apiServer @i @o ctx)
