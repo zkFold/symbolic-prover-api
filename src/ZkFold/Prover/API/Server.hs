@@ -10,9 +10,10 @@ import Control.Concurrent.STM (newTQueueIO, newTVarIO, writeTVar)
 import Control.Concurrent.STM.TVar (readTVarIO)
 import Control.Monad (forever, replicateM_)
 import Control.Monad.STM (atomically)
+import Data.Aeson (ToJSON)
 import Data.Aeson.Encode.Pretty (encodePretty)
+import Data.ByteString.Lazy.Char8 qualified as LBS
 import Data.Pool
-import qualified Data.ByteString.Lazy.Char8 as LBS
 import Data.Time (diffUTCTime, secondsToNominalDiffTime)
 import Data.Time.Clock (
     NominalDiffTime,
@@ -68,7 +69,7 @@ runServer ::
     forall i o.
     ( ProveAlgorithm i o
     , MimeUnrender JSON i
-    , ProveJSON i o
+    , ToJSON i
     ) =>
     ServerConfig -> IO ()
 runServer ServerConfig{..} = do

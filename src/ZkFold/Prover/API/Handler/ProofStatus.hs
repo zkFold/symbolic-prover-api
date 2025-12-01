@@ -3,7 +3,7 @@
 module ZkFold.Prover.API.Handler.ProofStatus where
 
 import Control.Monad.IO.Class (liftIO)
-import Data.Aeson (FromJSON)
+import Data.Aeson (FromJSON, ToJSON)
 import Data.Pool (withResource)
 import Servant
 import ZkFold.Prover.API.Database (getProofStatus)
@@ -17,7 +17,7 @@ type ProofStatusEndpoint o =
         :> ReqBody '[JSON] ProofId
         :> Post '[JSON] (ProofStatus o)
 
-proofStatusServer :: forall i o. (FromJSON o) => Ctx i -> Server (ProofStatusEndpoint o)
+proofStatusServer :: forall i o. (ToJSON o, FromJSON o) => Ctx i -> Server (ProofStatusEndpoint o)
 proofStatusServer Ctx{..} = handler
   where
     handler :: ProofId -> Handler (ProofStatus o)

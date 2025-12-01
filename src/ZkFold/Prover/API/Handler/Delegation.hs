@@ -1,14 +1,18 @@
 module ZkFold.Prover.API.Handler.Delegation where
 
 import Control.Exception (SomeException, try)
-import Data.ByteString hiding ((!?))
+import Crypto.Number.Generate
+import Crypto.Random (MonadRandom)
+import Data.ByteString hiding (length, (!?))
 import Data.List ((!?))
 import Network.HTTP.Client
 import Network.HTTP.Types
 
 -- | Returns which prover to delegate the proof to. If Nothing , no delegation is needed.
-delegationStrategy :: forall i. [String] -> i -> Maybe String
-delegationStrategy urls _ = urls !? 0
+delegationStrategy :: forall i m. (MonadRandom m) => [String] -> i -> m (Maybe String)
+delegationStrategy urls _ = do
+    i <- generateBetween 0 (fromIntegral $ length urls)
+    pure $ urls !? fromIntegral i
 
 customHeaders :: [(HeaderName, ByteString)]
 customHeaders =

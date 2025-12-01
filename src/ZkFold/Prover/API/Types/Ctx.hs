@@ -6,7 +6,6 @@ module ZkFold.Prover.API.Types.Ctx (
 import Control.Concurrent.STM (TQueue, TVar)
 
 import Data.Pool
-import Data.Text (toLower)
 import Data.UUID (UUID)
 import Database.SQLite.Simple
 import ZkFold.Prover.API.Types.Encryption

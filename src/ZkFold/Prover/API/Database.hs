@@ -181,17 +181,17 @@ updateStatus conn uuid status = do
             (showStatusName status, uuid)
 
     case status of
-        P.Completed bytes ->
+        P.Completed res ->
             void $
                 execute
                     conn
                     " \
                     \ UPDATE prove_request_table \
                     \ SET proof_bytes = ?, \
-                    \     proof_time = CURRENT_TIMESTAMP  \
+                    \     proof_time = ? \
                     \ WHERE query_uuid = ?; \
                     \ "
-                    (toStrict $ encode bytes, uuid)
+                    (toStrict $ encode $ presBytes res, presTimestamp res, uuid)
         _ -> pure ()
 
 markAsPending :: Connection -> UUID -> IO ()

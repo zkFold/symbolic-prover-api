@@ -1,12 +1,14 @@
 ## Default Configuration File
 
 # Server port number
-serverPort: 8083
+serverPort: 8085
 # Database file path
-dbFile: proofs.db
+dbFile: prover1.db
 # Number of worker threads
 nWorkers: 2
 # Proof lifetime in days
 proofLifetime: 30
 # Key lifetime in seconds
 keysLifetime: 86400
+# Delegation servers
+delegationServers: []
