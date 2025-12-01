@@ -10,9 +10,10 @@ import Control.Concurrent.STM (newTQueueIO, newTVarIO, writeTVar)
 import Control.Concurrent.STM.TVar (readTVarIO)
 import Control.Monad (forever, replicateM_)
 import Control.Monad.STM (atomically)
+import Data.Aeson (ToJSON)
 import Data.Aeson.Encode.Pretty (encodePretty)
+import Data.ByteString.Lazy.Char8 qualified as LBS
 import Data.Pool
-import qualified Data.ByteString.Lazy.Char8 as LBS
 import Data.Time (diffUTCTime, secondsToNominalDiffTime)
 import Data.Time.Clock (
     NominalDiffTime,
@@ -68,12 +69,14 @@ runServer ::
     forall i o.
     ( ProveAlgorithm i o
     , MimeUnrender JSON i
+    , ToJSON i
     ) =>
     ServerConfig -> IO ()
 runServer ServerConfig{..} = do
     putStrLn "Started with config:"
     LBS.putStrLn $ encodePretty ServerConfig{..}
 
+    let delegationServersFixed = (\url -> if last url == '/' then init url else url) <$> delegationServers
     let keyLifetime = secondsToNominalDiffTime $ toEnum $ keysLifetime * (10 ^ (12 :: Int))
     oldKey <- randomKeyPair (keyLifetime / 2)
     newKey <- randomKeyPair keyLifetime
@@ -89,6 +92,7 @@ runServer ServerConfig{..} = do
                 { ctxConnectionPool = pool
                 , ctxServerKeys = keysVar
                 , ctxProofQueue = queue
+                , ctxDelegationServers = delegationServersFixed
                 }
 
     _oldProofsDeleterThreadId <- execSchedule $ do

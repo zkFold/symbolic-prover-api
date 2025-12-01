@@ -4,21 +4,22 @@ module ZkFold.Prover.API.Handler where
 
 import Control.Lens ((.~), (?~))
 import Control.Lens.Lens
+import Data.Aeson (ToJSON)
 import Data.Swagger (Swagger, URL (..), applyTagsFor)
 import Data.Swagger.Lens
+import GHC.Base (Symbol)
 import Servant
 import Servant.Swagger (HasSwagger (toSwagger), subOperations)
 import Servant.Swagger.UI (SwaggerSchemaUI, swaggerSchemaUIServerT)
-import ZkFold.Prover.API.Orphans ()
 import ZkFold.Prover.API.Handler.Keys (KeysEndpoint, keysServer)
 import ZkFold.Prover.API.Handler.ProofStatus (ProofStatusEndpoint, proofStatusServer)
 import ZkFold.Prover.API.Handler.ProveEncrypted (ProveEncryptedEndpoint, proveEncryptedServer)
 import ZkFold.Prover.API.Handler.ProveUnencrypted (ProveUnencryptedEndpoint, proveUnencryptedServer)
 import ZkFold.Prover.API.Handler.Stats (StatsEndpoint, statsServer)
+import ZkFold.Prover.API.Orphans ()
 import ZkFold.Prover.API.Robots (RobotsAPI, handleRobots)
 import ZkFold.Prover.API.Types.Ctx (Ctx)
 import ZkFold.Prover.API.Types.ProveAlgorithm (ProveAlgorithm)
-import GHC.Base (Symbol)
 import Prelude hiding (id)
 
 type V0 :: Symbol
@@ -78,9 +79,9 @@ openApi =
 api :: forall i o. Proxy (ProverAPI i o)
 api = Proxy
 
-apiServer :: forall i o. (ProveAlgorithm i o) => Ctx i -> Server (ProverAPI i o)
+apiServer :: forall i o. (ToJSON i, ProveAlgorithm i o) => Ctx i -> Server (ProverAPI i o)
 apiServer ctx =
-    (proofStatusServer ctx
+    ( proofStatusServer ctx
         :<|> statsServer ctx
         :<|> proveUnencryptedServer ctx
         :<|> keysServer ctx

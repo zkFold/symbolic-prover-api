@@ -19,6 +19,8 @@ data ServerConfig = ServerConfig
     -- ^ Proof lifetime in days (default: 30 days)
     , keysLifetime :: Int
     -- ^ Key lifetime in seconds (default: 24 hours)
+    , delegationServers :: [String]
+    -- ^ Servers which can be used to delegate prove
     }
     deriving (Eq, Show, Generic)
     deriving anyclass (ToJSON, FromJSON)

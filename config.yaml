@@ -10,3 +10,5 @@ nWorkers: 2
 proofLifetime: 30
 # Key lifetime in seconds
 keysLifetime: 86400
+# Delegation servers
+delegationServers: []
