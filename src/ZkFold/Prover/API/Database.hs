@@ -45,16 +45,7 @@ data Record = Record
     , delegation :: Maybe String
     }
     deriving (Generic, Show)
-
-instance FromRow Record where
-    fromRow = do
-        queryUUID <- field
-        status <- field
-        createTime <- field
-        proofBytes <- field
-        proofTime <- field
-        delegation <- field
-        pure $ Record{..}
+    deriving anyclass (FromRow)
 
 createQueryTable :: Query
 createQueryTable =
@@ -119,17 +110,12 @@ getProofStatus conn (ProofId uuid) = do
 
             case (mDelegation, mProof) of
                 (Just url, Nothing) -> do
-                    response <- sendPostRequest (url <> "/v0/proof-status") (toStrict $ encode uuid) customHeaders
-                    case response of
-                        Left err -> do
-                            putStrLn $ "LOG: Error \'" <> show err <> "\' in get proof status from delegation server " <> url <> " for delegated prove " <> show uuid
+                    resultBytes <- sendPostRequest (url <> "/v0/proof-status") (toStrict $ encode uuid) customHeaders
+                    case decode (fromStrict resultBytes) of
+                        Nothing -> do
+                            putStrLn $ "LOG: Error in decoding proof status from delegation server " <> url <> " for delegated prove " <> show uuid
                             pure $ mapToProofStatus (status, res)
-                        Right resultBytes -> do
-                            case decode (fromStrict resultBytes) of
-                                Nothing -> do
-                                    putStrLn $ "LOG: Error in decoding proof status from delegation server " <> url <> " for delegated prove " <> show uuid
-                                    pure $ mapToProofStatus (status, res)
-                                Just result -> result <$ updateStatus conn uuid result
+                        Just result -> result <$ updateStatus conn uuid result
                 _ -> pure $ mapToProofStatus (status, res)
   where
     mapToProofStatus = \case

@@ -1,20 +1,22 @@
 module ZkFold.Prover.API.Handler.Delegation where
 
-import Control.Exception (SomeException, try)
+import Control.Lens ((^.))
 import Crypto.Number.Generate
 import Crypto.Random (MonadRandom)
-import Data.ByteString hiding (length, (!?))
-import Data.List ((!?))
-import Network.HTTP.Client
-import Network.HTTP.Types
+import Data.ByteString hiding (foldr, length, (!?))
+import Network.HTTP.Types (Header)
+import Network.HTTP.Types.Header (hContentType)
+import Network.Wreq hiding (options)
+import Network.Wreq.Types (Options (..))
+import ZkFold.Prover.API.Utils ((!?))
 
--- | Returns which prover to delegate the proof to. If Nothing , no delegation is needed.
+-- | Returns which prover to delegate the proof to. If Nothing, no delegation is needed.
 delegationStrategy :: forall i m. (MonadRandom m) => [String] -> i -> m (Maybe String)
 delegationStrategy urls _ = do
     i <- generateBetween 0 (fromIntegral $ length urls)
     pure $ urls !? fromIntegral i
 
-customHeaders :: [(HeaderName, ByteString)]
+customHeaders :: [Header]
 customHeaders =
     [ (hContentType, "application/json")
     ]
@@ -26,25 +28,9 @@ sendPostRequest ::
     String ->
     ByteString ->
     [Header] ->
-    IO (Either String ByteString)
-sendPostRequest serverUrl body headers = do
-    manager <- newManager defaultManagerSettings
-
-    initialRequestResult <- try (parseRequest serverUrl) :: IO (Either SomeException Request)
-
-    case initialRequestResult of
-        Left err -> return $ Left $ "Parsing URL error: " ++ show err
-        Right req -> do
-            let modifiedRequest =
-                    req
-                        { method = methodPost
-                        , requestBody = RequestBodyLBS (fromStrict body)
-                        , requestHeaders = headers
-                        }
-
-            responseResult <- fmap (toStrict . responseBody) <$> try (httpLbs modifiedRequest manager) :: IO (Either SomeException ByteString)
-
-            case responseResult of
-                Left err -> return $ Left $ "Error executing request: " ++ show err
-                Right response -> do
-                    return $ Right response
+    IO ByteString
+sendPostRequest serverUrl body hs = do
+    response <- postWith options serverUrl body
+    pure $ toStrict $ response ^. responseBody
+  where
+    options = defaults{headers = hs}

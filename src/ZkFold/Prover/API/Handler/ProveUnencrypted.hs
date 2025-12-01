@@ -35,18 +35,12 @@ proveUnencryptedServer Ctx{..} = handler
             atomically $ writeTQueue ctxProofQueue (uuid, UnencryptedWD w)
             pure $ ProofId uuid
     handleProveWithDelegationStrategy w (Just url) = do
-        eUuid <- liftIO $ sendPostRequest (url <> "/v0/prove") (toStrict $ encode w) customHeaders
-        case eUuid of
-            Left err -> do
-                liftIO $ putStrLn $ "LOG: Error \'" <> show err <> "\' in delegating prove"
-                -- TODO: Retry with other server
+        uuidBytes <- liftIO $ sendPostRequest (url <> "/v0/prove") (toStrict $ encode w) customHeaders
+        ProofId uuid <- case decode (fromStrict uuidBytes) of
+            Nothing -> do
+                liftIO $ putStrLn "LOG: delegation server didn't return correct uuid"
                 handleProveWithDelegationStrategy w Nothing
-            Right uuidBytes -> do
-                ProofId uuid <- case decode (fromStrict uuidBytes) of
-                    Nothing -> do
-                        liftIO $ putStrLn "LOG: delegation server didn't return correct uuid"
-                        handleProveWithDelegationStrategy w Nothing
-                    Just x -> pure x
-                liftIO $ withResource ctxConnectionPool $ \conn -> do
-                    addNewProveQuery conn uuid (Just url)
-                    pure $ ProofId uuid
+            Just x -> pure x
+        liftIO $ withResource ctxConnectionPool $ \conn -> do
+            addNewProveQuery conn uuid (Just url)
+            pure $ ProofId uuid

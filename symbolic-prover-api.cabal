@@ -124,8 +124,7 @@ library
     wai-extra,
     warp,
     yaml,
-    http-client,
-    http-types,
+    wreq
 
   hs-source-dirs: src
 
