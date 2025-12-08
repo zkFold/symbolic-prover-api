@@ -18,4 +18,5 @@ data Ctx w = Ctx
     { ctxConnectionPool :: Pool Connection
     , ctxServerKeys :: !(TVar [KeyPair])
     , ctxProofQueue :: TQueue (UUID, WitnessData w)
+    , ctxDelegationServers :: [String]
     }

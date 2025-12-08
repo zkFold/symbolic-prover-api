@@ -70,6 +70,7 @@ library
     ZkFold.Prover.API.Encryption
     ZkFold.Prover.API.Executor
     ZkFold.Prover.API.Handler
+    ZkFold.Prover.API.Handler.Delegation
     ZkFold.Prover.API.Handler.Keys
     ZkFold.Prover.API.Handler.ProofStatus
     ZkFold.Prover.API.Handler.ProveEncrypted
@@ -123,6 +124,7 @@ library
     wai-extra,
     warp,
     yaml,
+    wreq
 
   hs-source-dirs: src
 

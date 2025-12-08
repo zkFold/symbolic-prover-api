@@ -1,13 +1,8 @@
 packages: .
 
-allow-newer: 
-    base                ,
-    template-haskell    , 
-    deepseq
-
 source-repository-package
   type: git
   location: https://github.com/zkFold/symbolic
-  tag: 3b5c4b15ff16f2034141b733fb562d67972c3c4e
+  tag: 631ffb9b82802c0ea3437d6ea3f2f378e9e5387f
   subdir: symbolic-base 
           symbolic-examples

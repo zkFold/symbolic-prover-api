@@ -1,5 +1,6 @@
 {-# LANGUAGE AllowAmbiguousTypes #-}
 {-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE LambdaCase #-}
 {-# OPTIONS_GHC -Wno-orphans #-}
 
 module ZkFold.Prover.API.Database where
@@ -8,7 +9,8 @@ import Control.Applicative
 
 import Control.Monad
 import Data.Aeson
-import Data.ByteString (ByteString)
+import Data.ByteString (ByteString, toStrict)
+import Data.ByteString.Lazy (fromStrict)
 import Data.Int
 import Data.Maybe
 import Data.Time (UTCTime)
@@ -17,6 +19,7 @@ import Database.SQLite.Simple
 import Database.SQLite.Simple.FromField (FromField (fromField), fieldData, returnError)
 import Database.SQLite.Simple.ToField (ToField (toField))
 import GHC.Generics
+import ZkFold.Prover.API.Handler.Delegation (customHeaders, sendPostRequest)
 import ZkFold.Prover.API.Types.Prove hiding (ProofStatus (..))
 import ZkFold.Prover.API.Types.Prove qualified as P
 import ZkFold.Prover.API.Types.Stats (ProverStats (..))
@@ -39,17 +42,10 @@ data Record = Record
     , createTime :: UTCTime
     , proofBytes :: Maybe ByteString
     , proofTime :: Maybe UTCTime
+    , delegation :: Maybe String
     }
     deriving (Generic, Show)
-
-instance FromRow Record where
-    fromRow = do
-        queryUUID <- field
-        status <- field
-        createTime <- field
-        proofBytes <- field
-        proofTime <- field
-        pure $ Record{..}
+    deriving anyclass (FromRow)
 
 createQueryTable :: Query
 createQueryTable =
@@ -59,7 +55,8 @@ createQueryTable =
     \     status varchar(16) NOT NULL, \
     \     create_time TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP, \
     \     proof_bytes BLOB, \
-    \     proof_time TEXT \
+    \     proof_time TEXT, \
+    \     delegation TEXT \
     \ ); \
     \ "
 
@@ -67,8 +64,8 @@ initDatabase :: Connection -> IO ()
 initDatabase conn = do
     void $ execute_ conn createQueryTable
 
-addNewProveQuery :: Connection -> UUID -> IO ()
-addNewProveQuery conn uuid = do
+addNewProveQuery :: Connection -> UUID -> Maybe String -> IO ()
+addNewProveQuery conn uuid delegation = do
     void $
         execute
             conn
@@ -76,15 +73,16 @@ addNewProveQuery conn uuid = do
             \ INSERT INTO \
             \     prove_request_table ( \
             \         query_uuid, \
-            \         status \
+            \         status, \
+            \         delegation \
             \     ) \
-            \ VALUES (?, 'QUEUED') \
+            \ VALUES (?, 'QUEUED', ?) \
             \ "
-            (Only uuid)
+            (uuid, delegation)
 
 getProofStatus ::
     forall o.
-    (FromJSON o) =>
+    (FromJSON o, ToJSON o) =>
     Connection -> ProofId -> IO (P.ProofStatus o)
 getProofStatus conn (ProofId uuid) = do
     statuses <-
@@ -94,24 +92,33 @@ getProofStatus conn (ProofId uuid) = do
             \ SELECT \
             \     status, \
             \     proof_bytes, \
-            \     proof_time \
+            \     proof_time, \
+            \     delegation \
             \ FROM prove_request_table \
             \ WHERE \
             \     query_uuid = ? \
             \ "
             (Only uuid)
-    let (status, mResult) =
-            case statuses of
-                [] -> (NotFound, Nothing)
-                (status', mProof, mTime) : _ -> (status', res)
-                  where
-                    res = do
-                        proofJson <- mProof
-                        time <- mTime
-                        proof <- decode proofJson
-                        pure $ ZKProveResult proof time
+    case statuses of
+        [] -> pure $ mapToProofStatus (NotFound, Nothing)
+        (status, mProof, mTime, mDelegation) : _ -> do
+            let res = do
+                    proofJson <- mProof
+                    time <- mTime
+                    proof <- decode proofJson
+                    pure $ ZKProveResult proof time
 
-    pure $ case (status, mResult) of
+            case (mDelegation, mProof) of
+                (Just url, Nothing) -> do
+                    resultBytes <- sendPostRequest (url <> "/v0/proof-status") (toStrict $ encode uuid) customHeaders
+                    case decode (fromStrict resultBytes) of
+                        Nothing -> do
+                            putStrLn $ "LOG: Error in decoding proof status from delegation server " <> url <> " for delegated prove " <> show uuid
+                            pure $ mapToProofStatus (status, res)
+                        Just result -> result <$ updateStatus conn uuid result
+                _ -> pure $ mapToProofStatus (status, res)
+  where
+    mapToProofStatus = \case
         (NotFound, Nothing) -> P.NotFound
         (Pending, Nothing) -> P.Pending
         (Queued, Nothing) -> P.Queued
@@ -130,7 +137,8 @@ getRecord conn uuid = do
             \     status, \
             \     create_time, \
             \     proof_bytes, \
-            \     proof_time \
+            \     proof_time, \
+            \     delegation \
             \ FROM prove_request_table \
             \ WHERE \
             \     query_uuid = ? \
@@ -138,29 +146,45 @@ getRecord conn uuid = do
             (Only uuid)
     pure record
 
-markAsPending :: Connection -> UUID -> IO ()
-markAsPending conn uuid = do
+showStatusName :: forall o. P.ProofStatus o -> String
+showStatusName = \case
+    (P.Completed _) -> "COMPLETED"
+    P.Failed -> "FAILED"
+    P.NotFound -> "NOT-FOUND"
+    P.Pending -> "PENDING"
+    P.Queued -> "QUEUED"
+
+updateStatus :: forall o. (ToJSON o) => Connection -> UUID -> P.ProofStatus o -> IO ()
+updateStatus conn uuid status = do
     void $
         execute
             conn
             " \
             \ UPDATE prove_request_table \
-            \ SET status = 'PENDING' \
+            \ SET status = ? \
             \ WHERE query_uuid = ?; \
             \ "
-            (Only uuid)
+            (showStatusName status, uuid)
+
+    case status of
+        P.Completed res ->
+            void $
+                execute
+                    conn
+                    " \
+                    \ UPDATE prove_request_table \
+                    \ SET proof_bytes = ?, \
+                    \     proof_time = ? \
+                    \ WHERE query_uuid = ?; \
+                    \ "
+                    (toStrict $ encode $ presBytes res, presTimestamp res, uuid)
+        _ -> pure ()
+
+markAsPending :: Connection -> UUID -> IO ()
+markAsPending conn uuid = updateStatus @() conn uuid P.Pending
 
 markAsFailed :: Connection -> UUID -> IO ()
-markAsFailed conn uuid = do
-    void $
-        execute
-            conn
-            " \
-            \ UPDATE prove_request_table \
-            \ SET status = 'FAILED' \
-            \ WHERE query_uuid = ?; \
-            \ "
-            (Only uuid)
+markAsFailed conn uuid = updateStatus @() conn uuid P.Failed
 
 finishTask ::
     Connection ->
