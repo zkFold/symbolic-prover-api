@@ -6,10 +6,10 @@ module ZkFold.Prover.API.Types.Ctx (
 import Control.Concurrent.STM (TQueue, TVar)
 
 import Data.Pool
-import Data.UUID (UUID)
 import Database.SQLite.Simple
 import ZkFold.Prover.API.Types.Encryption
 import ZkFold.Prover.API.Types.Prove
+import Data.ByteString
 
 data WitnessData w = EncryptedWD ZKProveRequest | UnencryptedWD w
 
@@ -17,6 +17,6 @@ data WitnessData w = EncryptedWD ZKProveRequest | UnencryptedWD w
 data Ctx w = Ctx
     { ctxConnectionPool :: Pool Connection
     , ctxServerKeys :: !(TVar [KeyPair])
-    , ctxProofQueue :: TQueue (UUID, WitnessData w)
+    , ctxProofQueue :: TQueue (ByteString, WitnessData w)
     , ctxDelegationServers :: [String]
     }

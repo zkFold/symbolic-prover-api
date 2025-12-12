@@ -5,7 +5,6 @@ import Control.Monad.IO.Class (liftIO)
 import Data.Aeson
 import Data.ByteString.Lazy (fromStrict, toStrict)
 import Data.Pool (withResource)
-import Data.UUID.V4 (nextRandom)
 import Servant
 import ZkFold.Prover.API.Database (addNewProveQuery, markAsFailed)
 import ZkFold.Prover.API.Encryption (decryptInput)
@@ -13,7 +12,11 @@ import ZkFold.Prover.API.Handler.Delegation (customHeaders, delegationStrategy, 
 import ZkFold.Prover.API.Orphans ()
 import ZkFold.Prover.API.Types (ProofId (..))
 import ZkFold.Prover.API.Types.Ctx (Ctx (..), WitnessData (..))
-import ZkFold.Prover.API.Types.Prove (ZKProveRequest)
+import ZkFold.Prover.API.Types.Prove (
+    ZKProveRequest,
+    proofIdFromData,
+ )
+import Prelude hiding (id)
 
 -- | Type for the encrypted prove endpoint.
 type ProveEncryptedEndpoint =
@@ -33,27 +36,27 @@ proveEncryptedServer Ctx{..} = handler
     handleProveWithDelegationStrategy :: ZKProveRequest -> Maybe String -> Handler ProofId
     handleProveWithDelegationStrategy zkRequest Nothing =
         liftIO $ withResource ctxConnectionPool $ \conn -> do
-            uuid <- nextRandom
-            addNewProveQuery conn uuid Nothing
-            atomically $ writeTQueue ctxProofQueue (uuid, EncryptedWD zkRequest)
-            pure $ ProofId uuid
+            let pid@(ProofId id) = proofIdFromData zkRequest
+            addNewProveQuery conn pid Nothing
+            atomically $ writeTQueue ctxProofQueue (id, EncryptedWD zkRequest)
+            pure pid
     handleProveWithDelegationStrategy zkRequest (Just url) = do
         eDecryptedInput <- liftIO $ runHandler $ decryptInput ctxServerKeys zkRequest :: Handler (Either ServerError i)
         case eDecryptedInput of
             Left err ->
                 liftIO $ withResource ctxConnectionPool $ \conn -> do
-                    uuid <- nextRandom
-                    putStrLn $ "LOG: Error \'" <> show err <> "\' in decrypting input with id " <> show uuid
-                    addNewProveQuery conn uuid Nothing
-                    markAsFailed conn uuid
-                    pure $ ProofId uuid
+                    let pid = proofIdFromData zkRequest
+                    putStrLn $ "LOG: Error \'" <> show err <> "\' in decrypting input with id " <> show pid
+                    addNewProveQuery conn pid Nothing
+                    markAsFailed conn pid
+                    pure pid
             Right decryptedInput -> do
-                uuidBytes <- liftIO $ sendPostRequest (url <> "/v0/prove") (toStrict $ encode decryptedInput) customHeaders
-                ProofId uuid <- case decode (fromStrict uuidBytes) of
+                idBytes <- liftIO $ sendPostRequest (url <> "/v0/prove") (toStrict $ encode decryptedInput) customHeaders
+                pid <- case decode (fromStrict idBytes) of
                     Nothing -> do
-                        liftIO $ putStrLn "LOG: delegation server didn't return correct uuid"
+                        liftIO $ putStrLn "LOG: delegation server didn't return correct id"
                         handleProveWithDelegationStrategy zkRequest Nothing
                     Just x -> pure x
                 liftIO $ withResource ctxConnectionPool $ \conn -> do
-                    addNewProveQuery conn uuid (Just url)
-                    pure $ ProofId uuid
+                    addNewProveQuery conn pid (Just url)
+                    pure pid

@@ -6,15 +6,18 @@ module ZkFold.Prover.API.Types.Prove (
     ZKProveResult (..),
     ProofId (..),
     ProofStatus (..),
+    proofIdFromData,
 ) where
 
 import Data.Time.Clock (UTCTime)
-import Data.UUID qualified as UUID (UUID, nil, toText)
+import Data.UUID qualified as UUID (nil, toText)
 import Deriving.Aeson
 
 import Control.Lens
-import Data.Aeson (ToJSON (..))
+import Crypto.Hash.SHA512 (hash)
+import Data.Aeson (ToJSON (..), encode)
 import Data.Aeson.Casing
+import Data.ByteString qualified as BS
 import Data.Char (isLower)
 import Data.Data
 import Data.Swagger qualified as Swagger
@@ -25,6 +28,8 @@ import ZkFold.Prover.API.Types.Common (addDescription, addFieldDescription)
 import ZkFold.Prover.API.Types.Encryption (KeyID)
 import ZkFold.Prover.API.Utils
 import ZkFold.Symbolic.Examples.SmartWallet (ByteStringFromHex (..))
+import Database.SQLite.Simple.FromField (FromField)
+import Database.SQLite.Simple.ToField (ToField)
 
 data ZKProveRequest
     = ZKProveRequest
@@ -106,14 +111,17 @@ instance forall o. (Swagger.ToSchema o) => Swagger.ToSchema (ZKProveResult o) wh
             Swagger.defaultSchemaOptions{Swagger.fieldLabelModifier = snakeCase . dropWhile isLower}
             & addSwaggerDescription "ZK proof bytes with a timestamp"
 
-newtype ProofId = ProofId UUID.UUID
+newtype ProofId = ProofId { getProofId :: BS.ByteString }
     deriving stock (Eq, Generic, Ord, Show)
-    deriving newtype (FromJSON, ToJSON)
+    deriving newtype (FromJSON, ToJSON, FromField, ToField)
+
+proofIdFromData :: (ToJSON o) => o -> ProofId
+proofIdFromData = ProofId . hash . BS.toStrict . encode
 
 instance Swagger.ToSchema ProofId where
     declareNamedSchema _ =
         pure $
-            Swagger.named "UUID" $
+            Swagger.named "Id" $
                 mempty
                     & Swagger.type_ ?~ Swagger.SwaggerString
                     & Swagger.format ?~ "string"

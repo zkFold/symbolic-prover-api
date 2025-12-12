@@ -15,6 +15,7 @@ import ZkFold.Prover.API.Encryption
 import ZkFold.Prover.API.Orphans ()
 import ZkFold.Prover.API.Types.Ctx
 import ZkFold.Prover.API.Types.ProveAlgorithm (ProveAlgorithm (proveAlgorithm))
+import ZkFold.Prover.API.Types.Prove
 
 proofExecutor :: forall i o. (ProveAlgorithm i o) => Ctx i -> IO ()
 proofExecutor Ctx{..} = do
@@ -22,7 +23,8 @@ proofExecutor Ctx{..} = do
     forever $ do
         putStrLn "Waiting for query"
         (taskId, wd) <- atomically $ readTQueue ctxProofQueue
-        withResource ctxConnectionPool $ \conn -> markAsPending conn taskId
+        let pid = ProofId taskId
+        withResource ctxConnectionPool $ \conn -> markAsPending conn pid
         eWitness <- case wd of
             EncryptedWD zkpr -> runHandler $ decryptInput @i ctxServerKeys zkpr
             UnencryptedWD w -> pure $ pure w
@@ -31,15 +33,15 @@ proofExecutor Ctx{..} = do
                 putStrLn $ "LOG: Error \'" <> show err <> "\' in decrypting input with id " <> show taskId
 
                 withResource ctxConnectionPool $ \conn -> do
-                    markAsFailed conn taskId
+                    markAsFailed conn pid
             Right w -> handle handler $ do
                 let proof = proveAlgorithm @i @o w
                 let proofBytes = encode proof
 
                 withResource ctxConnectionPool $ \conn -> do
-                    finishTask conn taskId (toStrict proofBytes)
+                    finishTask conn pid (toStrict proofBytes)
               where
                 handler :: SomeException -> IO ()
                 handler (ex :: SomeException) = do
                     putStrLn $ "LOG: Caught exception in executor thread: " <> show ex
-                    withResource ctxConnectionPool $ \conn -> markAsFailed conn taskId
+                    withResource ctxConnectionPool $ \conn -> markAsFailed conn pid

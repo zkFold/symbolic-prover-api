@@ -124,7 +124,8 @@ library
     wai-extra,
     warp,
     yaml,
-    wreq
+    wreq,
+    cryptohash-sha512
 
   hs-source-dirs: src
 
