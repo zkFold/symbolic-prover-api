@@ -30,6 +30,8 @@ import ZkFold.Prover.API.Utils
 import ZkFold.Symbolic.Examples.SmartWallet (ByteStringFromHex (..))
 import Database.SQLite.Simple.FromField (FromField)
 import Database.SQLite.Simple.ToField (ToField)
+import Data.ByteString.Base64.URL (encodeBase64Unpadded')
+import Data.Base64.Types (extractBase64)
 
 data ZKProveRequest
     = ZKProveRequest
@@ -116,7 +118,7 @@ newtype ProofId = ProofId { getProofId :: BS.ByteString }
     deriving newtype (FromJSON, ToJSON, FromField, ToField)
 
 proofIdFromData :: (ToJSON o) => o -> ProofId
-proofIdFromData = ProofId . hash . BS.toStrict . encode
+proofIdFromData = ProofId . (extractBase64 . encodeBase64Unpadded' . hash) . BS.toStrict . encode
 
 instance Swagger.ToSchema ProofId where
     declareNamedSchema _ =

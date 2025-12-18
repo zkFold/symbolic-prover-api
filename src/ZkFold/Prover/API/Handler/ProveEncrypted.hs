@@ -6,7 +6,7 @@ import Data.Aeson
 import Data.ByteString.Lazy (fromStrict, toStrict)
 import Data.Pool (withResource)
 import Servant
-import ZkFold.Prover.API.Database (addNewProveQuery, markAsFailed)
+import ZkFold.Prover.API.Database (addNewProveQuery, isProofExist, markAsFailed)
 import ZkFold.Prover.API.Encryption (decryptInput)
 import ZkFold.Prover.API.Handler.Delegation (customHeaders, delegationStrategy, sendPostRequest)
 import ZkFold.Prover.API.Orphans ()
@@ -37,8 +37,13 @@ proveEncryptedServer Ctx{..} = handler
     handleProveWithDelegationStrategy zkRequest Nothing =
         liftIO $ withResource ctxConnectionPool $ \conn -> do
             let pid@(ProofId id) = proofIdFromData zkRequest
-            addNewProveQuery conn pid Nothing
-            atomically $ writeTQueue ctxProofQueue (id, EncryptedWD zkRequest)
+            status <- isProofExist conn pid
+            if not status
+                then do
+                    addNewProveQuery conn pid Nothing
+                    atomically $ writeTQueue ctxProofQueue (id, EncryptedWD zkRequest)
+                else do
+                    putStrLn $ "LOG: Duplicate prove request with id " <> show pid <> " rejected"
             pure pid
     handleProveWithDelegationStrategy zkRequest (Just url) = do
         eDecryptedInput <- liftIO $ runHandler $ decryptInput ctxServerKeys zkRequest :: Handler (Either ServerError i)

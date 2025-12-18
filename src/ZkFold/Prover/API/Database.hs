@@ -39,7 +39,7 @@ createQueryTable :: Query
 createQueryTable =
     " \
     \ CREATE TABLE IF NOT EXISTS prove_request_table ( \
-    \     id varchar(64) PRIMARY KEY NOT NULL, \
+    \     id varchar(86) PRIMARY KEY NOT NULL, \
     \     status varchar(16) NOT NULL, \
     \     create_time TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP, \
     \     proof_bytes BLOB, \
@@ -67,6 +67,8 @@ addNewProveQuery conn (ProofId id) delegation = do
             \ VALUES (?, 'QUEUED', ?) \
             \ "
             (id, delegation)
+
+
 
 getProofStatus ::
     forall o.
@@ -113,6 +115,21 @@ getProofStatus conn pid@(ProofId id) = do
         (Completed, Just result) -> P.Completed result
         (Failed, _) -> P.Failed
         _ -> P.NotFound
+
+isProofExist :: Connection -> ProofId -> IO Bool
+isProofExist conn (ProofId id) = do
+    [Only cnt] <-
+        query
+            conn
+            " \
+            \ SELECT \
+            \     COUNT(*) \
+            \ FROM prove_request_table \
+            \ WHERE \
+            \     id = ? \
+            \ "
+            (Only id)
+    pure (cnt > (0 :: Int64))
 
 getRecord :: Connection -> ProofId -> IO Record
 getRecord conn (ProofId id) = do

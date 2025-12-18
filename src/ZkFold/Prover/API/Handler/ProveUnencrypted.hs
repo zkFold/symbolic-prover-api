@@ -6,7 +6,7 @@ import Data.Aeson
 import Data.ByteString.Lazy (fromStrict, toStrict)
 import Data.Pool (withResource)
 import Servant
-import ZkFold.Prover.API.Database (addNewProveQuery)
+import ZkFold.Prover.API.Database (addNewProveQuery, isProofExist)
 import ZkFold.Prover.API.Handler.Delegation (customHeaders, delegationStrategy, sendPostRequest)
 import ZkFold.Prover.API.Orphans ()
 import ZkFold.Prover.API.Types (ProofId (..))
@@ -32,8 +32,13 @@ proveUnencryptedServer Ctx{..} = handler
     handleProveWithDelegationStrategy w Nothing =
         liftIO $ withResource ctxConnectionPool $ \conn -> do
             let pid@(ProofId id) = proofIdFromData w
-            addNewProveQuery conn pid Nothing
-            atomically $ writeTQueue ctxProofQueue (id, UnencryptedWD w)
+            status <- isProofExist conn pid
+            if not status
+                then do
+                    addNewProveQuery conn pid Nothing
+                    atomically $ writeTQueue ctxProofQueue (id, UnencryptedWD w)
+                else do
+                    putStrLn $ "LOG: Duplicate prove request with id " <> show pid <> " rejected"
             pure pid
     handleProveWithDelegationStrategy w (Just url) = do
         idBytes <- liftIO $ sendPostRequest (url <> "/v0/prove") (toStrict $ encode w) customHeaders
